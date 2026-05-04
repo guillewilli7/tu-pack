@@ -77,11 +77,16 @@
         <tbody>
           <% const itemList = Array.isArray(items) ? items : (typeof items === 'object' ? Object.values(items) : []); %>
           <% itemList.forEach(function(item) { %>
+            <% var nombre = item.nombre_pedido || item.nombre_catalogo || item.nombre || item.name || item.producto || '—'; %>
+            <% var codigo = item.codigo_prod || item.codigo || ''; %>
+            <% var cantidad = item.cantidad || item.qty || item.quantity || '—'; %>
+            <% var precioUnit = item.precio_unitario || item.precio || item.price || null; %>
+            <% var subtotal = item.subtotal || null; %>
             <tr>
-              <td><strong><%= item.nombre || item.name || item.producto || item.product || JSON.stringify(item).slice(0,60) %></strong></td>
-              <td><%= item.cantidad || item.qty || item.quantity || '—' %></td>
-              <td><%= item.precio || item.price || item.precio_unitario ? '$' + Number(item.precio || item.price || item.precio_unitario || 0).toFixed(2) : '—' %></td>
-              <td><%= item.subtotal ? '$' + Number(item.subtotal).toFixed(2) : '—' %></td>
+              <td><strong><%= nombre %></strong><% if (codigo) { %> <span class="text-muted" style="font-size:12px;"><%= codigo %></span><% } %></td>
+              <td><%= cantidad %></td>
+              <td><%= precioUnit !== null ? '$' + Number(precioUnit).toFixed(2) : '—' %></td>
+              <td><%= subtotal !== null ? '$' + Number(subtotal).toFixed(2) : '—' %></td>
               <td class="text-muted"><%= item.notas || item.notes || '' %></td>
             </tr>
           <% }) %>
