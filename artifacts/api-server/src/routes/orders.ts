@@ -4,6 +4,13 @@ import { pool } from "../db";
 const router = Router();
 const PAGE_SIZE = 25;
 
+const NEXT_STATUS: Record<string, string> = {
+  pendiente: "en_proceso",
+  en_proceso: "completada",
+};
+
+const ALLOWED_CANCEL = new Set(["pendiente", "en_proceso", "completada", "confirmado"]);
+
 router.get("/", async (req, res) => {
   const { status, from, to, page } = req.query as Record<string, string>;
   const currentPage = Math.max(1, parseInt(page || "1", 10));
@@ -15,8 +22,13 @@ router.get("/", async (req, res) => {
     let idx = 1;
 
     if (status && status !== "all") {
-      baseWhere += ` AND o.status = $${idx++}`;
-      params.push(status);
+      if (status === "completada") {
+        baseWhere += ` AND o.status IN ($${idx++}, $${idx++})`;
+        params.push("completada", "confirmado");
+      } else {
+        baseWhere += ` AND o.status = $${idx++}`;
+        params.push(status);
+      }
     }
     if (from) {
       baseWhere += ` AND o.created_at >= $${idx++}`;
@@ -87,31 +99,71 @@ router.get("/:id", async (req, res) => {
 });
 
 router.post("/:id", async (req, res) => {
-  const { action, status, total } = req.body as Record<string, string>;
-  try {
-    if (action === "cancel") {
-      await pool.query("UPDATE orders SET status = 'cancelado', updated_at = NOW() WHERE id = $1", [req.params.id]);
-    } else {
-      await pool.query(
-        "UPDATE orders SET status = $1, total = $2, updated_at = NOW() WHERE id = $3",
-        [status, parseFloat(total) || 0, req.params.id]
+  const { action, total } = req.body as Record<string, string>;
+
+  const renderError = async (msg: string) => {
+    try {
+      const { rows } = await pool.query(
+        `SELECT o.*, c.negocio AS client_negocio, c.codigo_cliente
+         FROM orders o LEFT JOIN clients c ON c.id = o.client_id
+         WHERE o.id = $1`,
+        [req.params.id]
       );
+      res.render("orders/detail", {
+        order: rows[0] || {},
+        nombre: req.session.nombre,
+        success: null,
+        error: msg,
+      });
+    } catch {
+      res.redirect("/orders");
     }
+  };
+
+  try {
+    const { rows: current } = await pool.query(
+      "SELECT status FROM orders WHERE id = $1",
+      [req.params.id]
+    );
+    if (!current.length) return res.redirect("/orders");
+    const currentStatus = current[0].status as string;
+
+    if (action === "advance") {
+      const next = NEXT_STATUS[currentStatus];
+      if (!next) return renderError(`No se puede avanzar desde el estado "${currentStatus}".`);
+      await pool.query(
+        "UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2",
+        [next, req.params.id]
+      );
+    } else if (action === "cancel") {
+      if (!ALLOWED_CANCEL.has(currentStatus)) {
+        return renderError("La orden ya está cancelada.");
+      }
+      await pool.query(
+        "UPDATE orders SET status = 'cancelado', updated_at = NOW() WHERE id = $1",
+        [req.params.id]
+      );
+    } else if (action === "reopen") {
+      if (currentStatus !== "cancelado") {
+        return renderError("Solo se puede reabrir una orden cancelada.");
+      }
+      await pool.query(
+        "UPDATE orders SET status = 'pendiente', updated_at = NOW() WHERE id = $1",
+        [req.params.id]
+      );
+    } else if (action === "update_total") {
+      await pool.query(
+        "UPDATE orders SET total = $1, updated_at = NOW() WHERE id = $2",
+        [parseFloat(total) || 0, req.params.id]
+      );
+    } else {
+      return renderError("Acción no reconocida.");
+    }
+
     res.redirect(`/orders/${req.params.id}?success=1`);
   } catch (err) {
     console.error(err);
-    const { rows } = await pool.query(
-      `SELECT o.*, c.negocio AS client_negocio, c.codigo_cliente
-       FROM orders o LEFT JOIN clients c ON c.id = o.client_id
-       WHERE o.id = $1`,
-      [req.params.id]
-    );
-    res.render("orders/detail", {
-      order: rows[0] || {},
-      nombre: req.session.nombre,
-      success: null,
-      error: "Error al guardar cambios.",
-    });
+    renderError("Error al guardar cambios.");
   }
 });
 

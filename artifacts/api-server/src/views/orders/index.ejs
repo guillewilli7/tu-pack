@@ -12,10 +12,11 @@
         <div class="form-group">
           <label class="form-label">Estado</label>
           <select name="status" class="form-control">
-            <option value="all" <%= filter.status === 'all' ? 'selected' : '' %>>Todos</option>
-            <option value="pendiente" <%= filter.status === 'pendiente' ? 'selected' : '' %>>Pendiente</option>
-            <option value="confirmado" <%= filter.status === 'confirmado' ? 'selected' : '' %>>Confirmado</option>
-            <option value="cancelado" <%= filter.status === 'cancelado' ? 'selected' : '' %>>Cancelado</option>
+            <option value="all"        <%= filter.status === 'all'        ? 'selected' : '' %>>Todos</option>
+            <option value="pendiente"  <%= filter.status === 'pendiente'  ? 'selected' : '' %>>Pendiente</option>
+            <option value="en_proceso" <%= filter.status === 'en_proceso' ? 'selected' : '' %>>En Proceso</option>
+            <option value="completada" <%= filter.status === 'completada' ? 'selected' : '' %>>Completada</option>
+            <option value="cancelado"  <%= filter.status === 'cancelado'  ? 'selected' : '' %>>Cancelada</option>
           </select>
         </div>
         <div class="form-group">
@@ -70,10 +71,12 @@
             <td>
               <% if (o.status === 'pendiente') { %>
                 <span class="badge badge-yellow">Pendiente</span>
-              <% } else if (o.status === 'confirmado') { %>
-                <span class="badge badge-green">Confirmado</span>
+              <% } else if (o.status === 'en_proceso') { %>
+                <span class="badge badge-blue">En Proceso</span>
+              <% } else if (o.status === 'completada' || o.status === 'confirmado') { %>
+                <span class="badge badge-green">Completada</span>
               <% } else if (o.status === 'cancelado') { %>
-                <span class="badge badge-red">Cancelado</span>
+                <span class="badge badge-red">Cancelada</span>
               <% } else { %>
                 <span class="badge badge-gray"><%= o.status %></span>
               <% } %>

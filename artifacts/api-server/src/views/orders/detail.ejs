@@ -7,6 +7,16 @@
 <% if (success) { %><div class="alert alert-success">Orden actualizada correctamente.</div><% } %>
 <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
 
+<%
+  var isCompleted = order.status === 'completada' || order.status === 'confirmado';
+  var isCancelled = order.status === 'cancelado';
+  var isInProcess = order.status === 'en_proceso';
+  var isPending   = order.status === 'pendiente';
+  var canAdvance  = isPending || isInProcess;
+  var canCancel   = !isCancelled;
+  var advanceLabel = isPending ? 'Marcar En Proceso' : 'Marcar Completada';
+%>
+
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;" class="section">
   <div class="card">
     <div class="card-header"><span class="card-title">Información</span></div>
@@ -19,9 +29,10 @@
         <tr><td style="padding:6px 0;color:#718096;">Cliente</td><td><% if (order.client_id) { %><a href="/clients/<%= order.client_id %>" class="btn-link"><%= order.client_negocio || order.codigo_cliente || order.client_id %></a><% } else { %>—<% } %></td></tr>
         <tr><td style="padding:6px 0;color:#718096;">Estado</td>
           <td>
-            <% if (order.status === 'pendiente') { %><span class="badge badge-yellow">Pendiente</span>
-            <% } else if (order.status === 'confirmado') { %><span class="badge badge-green">Confirmado</span>
-            <% } else if (order.status === 'cancelado') { %><span class="badge badge-red">Cancelado</span>
+            <% if (isPending) { %><span class="badge badge-yellow">Pendiente</span>
+            <% } else if (isInProcess) { %><span class="badge badge-blue">En Proceso</span>
+            <% } else if (isCompleted) { %><span class="badge badge-green">Completada</span>
+            <% } else if (isCancelled) { %><span class="badge badge-red">Cancelada</span>
             <% } else { %><span class="badge badge-gray"><%= order.status %></span><% } %>
           </td>
         </tr>
@@ -31,28 +42,55 @@
   </div>
 
   <div class="card">
-    <div class="card-header"><span class="card-title">Editar orden</span></div>
+    <div class="card-header"><span class="card-title">Acciones</span></div>
     <div class="card-body">
+
+      <% if (canAdvance) { %>
+      <form method="POST" action="/orders/<%= order.id %>" style="margin-bottom:12px;">
+        <button type="submit" name="action" value="advance" class="btn btn-primary" style="width:100%;">
+          ▶ <%= advanceLabel %>
+        </button>
+      </form>
+      <% } %>
+
+      <% if (isCompleted) { %>
+      <form method="POST" action="/orders/<%= order.id %>" style="margin-bottom:12px;">
+        <button type="submit" name="action" value="cancel"
+          class="btn btn-danger" style="width:100%;"
+          onclick="return confirm('¿Cancelar esta orden?')">
+          ✕ Cancelar orden
+        </button>
+      </form>
+      <% } %>
+
+      <% if (canCancel && !isCompleted) { %>
+      <form method="POST" action="/orders/<%= order.id %>" style="margin-bottom:12px;">
+        <button type="submit" name="action" value="cancel"
+          class="btn btn-danger" style="width:100%;"
+          onclick="return confirm('¿Cancelar esta orden?')">
+          ✕ Cancelar orden
+        </button>
+      </form>
+      <% } %>
+
+      <% if (isCancelled) { %>
+      <form method="POST" action="/orders/<%= order.id %>" style="margin-bottom:12px;">
+        <button type="submit" name="action" value="reopen" class="btn btn-secondary" style="width:100%;">
+          ↺ Volver a Pendiente
+        </button>
+      </form>
+      <% } %>
+
+      <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0;" />
+
       <form method="POST" action="/orders/<%= order.id %>">
-        <div class="form-group">
-          <label class="form-label">Estado</label>
-          <select name="status" class="form-control">
-            <option value="pendiente" <%= order.status === 'pendiente' ? 'selected' : '' %>>Pendiente</option>
-            <option value="confirmado" <%= order.status === 'confirmado' ? 'selected' : '' %>>Confirmado</option>
-            <option value="cancelado" <%= order.status === 'cancelado' ? 'selected' : '' %>>Cancelado</option>
-          </select>
-        </div>
         <div class="form-group">
           <label class="form-label">Total ($)</label>
           <input type="number" name="total" step="0.01" class="form-control" value="<%= order.total || 0 %>" />
         </div>
-        <div class="flex gap-2">
-          <button type="submit" name="action" value="update" class="btn btn-primary">Guardar</button>
-          <% if (order.status !== 'cancelado') { %>
-            <button type="submit" name="action" value="cancel" class="btn btn-danger" onclick="return confirm('¿Cancelar esta orden?')">Cancelar orden</button>
-          <% } %>
-        </div>
+        <button type="submit" name="action" value="update_total" class="btn btn-secondary">Actualizar total</button>
       </form>
+
     </div>
   </div>
 </div>
