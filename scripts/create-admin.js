@@ -1,7 +1,14 @@
 #!/usr/bin/env node
 /**
- * Usage: node scripts/create-admin.js <email> <nombre> <password>
- * Creates an admin user in the TuPack users table with a bcrypt-hashed password.
+ * Creates or updates an admin user in the TuPack users table.
+ *
+ * Usage:
+ *   node scripts/create-admin.js <email> <nombre> <password>
+ *
+ * Example (initial setup):
+ *   node scripts/create-admin.js admintupack@mail.com Admin tupack@2026
+ *
+ * Requires: TUPACK_DATABASE_URL (or DATABASE_URL) set in the environment.
  */
 
 import bcrypt from "bcryptjs";

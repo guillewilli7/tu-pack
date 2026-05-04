@@ -5,6 +5,7 @@ import session from "express-session";
 import path from "path";
 import router from "./routes";
 import authRouter from "./routes/auth";
+import healthRouter from "./routes/health";
 import ordersRouter from "./routes/orders";
 import clientsRouter from "./routes/clients";
 import productsRouter from "./routes/products";
@@ -61,6 +62,9 @@ app.set("views", path.join(__dirname, "views"));
 // Auth routes (no auth required)
 app.use("/", authRouter);
 
+// Health probe — public, no session required (liveness/readiness checks)
+app.use("/api", healthRouter);
+
 // Admin panel routes (auth required)
 app.use("/orders", requireAuth, ordersRouter);
 app.use("/clients", requireAuth, clientsRouter);
@@ -71,7 +75,7 @@ app.get("/", requireAuth, (_req, res) => {
   res.redirect("/orders");
 });
 
-// API routes also require auth (all routes must redirect unauthenticated visitors)
+// Remaining API routes require auth
 app.use("/api", requireAuth, router);
 
 export default app;
