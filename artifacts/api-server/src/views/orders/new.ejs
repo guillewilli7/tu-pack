@@ -125,8 +125,15 @@
     searchInput.value = c.negocio + (c.sucursal ? ' — ' + c.sucursal : '');
     document.getElementById('client-id').value = c.id;
     hideDropdown();
+    resetLines();
     showClientInfo(c);
     loadClientProducts(c.id);
+  }
+
+  function resetLines() {
+    lines = [];
+    linesBody.innerHTML = '';
+    recalcTotal();
   }
 
   function showClientInfo(c) {
