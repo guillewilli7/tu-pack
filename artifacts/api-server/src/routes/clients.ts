@@ -69,14 +69,19 @@ router.get("/:id", async (req, res) => {
 });
 
 router.post("/:id/update", async (req, res) => {
-  const { negocio, sucursal, razon_social, rut, direccion_facturacion, direccion_entrega, horario_entrega, activo } =
+  const { codigo_cliente, negocio, sucursal, razon_social, rut, direccion_facturacion, direccion_entrega, horario_entrega, activo } =
     req.body as Record<string, string>;
   try {
     await pool.query(
-      `UPDATE clients SET negocio=$1, sucursal=$2, razon_social=$3, rut=$4,
-       direccion_facturacion=$5, direccion_entrega=$6, horario_entrega=$7,
-       activo=$8, updated_at=NOW() WHERE id=$9`,
-      [negocio, sucursal, razon_social, rut, direccion_facturacion, direccion_entrega, horario_entrega, activo === "true", req.params.id]
+      `UPDATE clients SET codigo_cliente=$1, negocio=$2, sucursal=$3, razon_social=$4, rut=$5,
+       direccion_facturacion=$6, direccion_entrega=$7, horario_entrega=$8,
+       activo=$9, updated_at=NOW() WHERE id=$10`,
+      [
+        codigo_cliente ? parseInt(codigo_cliente, 10) : null,
+        negocio, sucursal, razon_social, rut,
+        direccion_facturacion, direccion_entrega, horario_entrega,
+        activo === "true", req.params.id,
+      ]
     );
     res.redirect(`/clients/${req.params.id}?success=1`);
   } catch (err) {
