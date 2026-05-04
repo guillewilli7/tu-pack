@@ -96,7 +96,7 @@
   </div>
 </div>
 
-<% if (order.raw_data) { %>
+<% if (order.raw_data && Object.keys(order.raw_data).length > 0) { %>
 <div class="card">
   <div class="card-header">
     <span class="card-title">Datos crudos</span>
