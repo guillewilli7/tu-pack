@@ -1,0 +1,413 @@
+<%- include('../partials/header', { title: 'Nuevo cliente', page: 'clients', nombre }) %>
+
+<div class="flex gap-2 items-center" style="margin-bottom:20px;">
+  <a href="/clients" class="btn btn-secondary btn-sm">← Volver</a>
+</div>
+
+<div id="page-error" class="alert alert-error" style="display:none;"></div>
+<div id="page-warning" class="alert" style="display:none;background:#fffbeb;border:1px solid #f6e05e;color:#744210;"></div>
+
+<div class="card section">
+  <div class="card-header"><span class="card-title">Datos del cliente</span></div>
+  <div class="card-body">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Código de cliente</label>
+        <input type="number" id="f-codigo" class="form-control" placeholder="Ej: 1042" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Negocio <span style="color:#e53e3e;">*</span></label>
+        <input type="text" id="f-negocio" class="form-control" placeholder="Nombre del negocio" required />
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Sucursal</label>
+        <input type="text" id="f-sucursal" class="form-control" placeholder="Ej: Casa central" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Razón social</label>
+        <input type="text" id="f-razon-social" class="form-control" />
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">RUT</label>
+        <input type="text" id="f-rut" class="form-control" placeholder="Ej: 21234567-8" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Estado</label>
+        <select id="f-activo" class="form-control">
+          <option value="true">Activo</option>
+          <option value="false">Inactivo</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Dirección de facturación</label>
+        <input type="text" id="f-dir-facturacion" class="form-control" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Dirección de entrega</label>
+        <input type="text" id="f-dir-entrega" class="form-control" />
+      </div>
+    </div>
+    <div class="form-group" style="max-width:400px;">
+      <label class="form-label">Horario de entrega</label>
+      <input type="text" id="f-horario" class="form-control" placeholder="Ej: Lunes a viernes 9-17hs" />
+    </div>
+  </div>
+</div>
+
+<div class="card section">
+  <div class="card-header">
+    <span class="card-title">Teléfonos asociados</span>
+    <button type="button" class="btn btn-sm btn-primary" onclick="addPhoneRow()">+ Agregar teléfono</button>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Teléfono</th>
+          <th>Etiqueta (ej: dueño, encargado)</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="phones-tbody">
+        <tr id="phones-empty"><td colspan="3" class="table-empty">Sin teléfonos. Agregá uno con el botón.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card section">
+  <div class="card-header">
+    <span class="card-title">Productos asociados</span>
+    <button type="button" class="btn btn-sm btn-primary" onclick="addProductRow()">+ Agregar producto</button>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="min-width:280px;">Producto</th>
+          <th style="min-width:140px;">Precio cliente ($)</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="products-tbody">
+        <tr id="products-empty"><td colspan="3" class="table-empty">Sin productos. Agregá uno con el botón.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div style="display:flex;gap:12px;margin-top:8px;">
+  <button type="button" class="btn btn-primary" id="save-btn" onclick="saveClient()">Guardar cliente</button>
+  <a href="/clients" class="btn btn-secondary">Cancelar</a>
+</div>
+
+<style>
+  .search-wrap { position: relative; }
+  .search-dropdown {
+    display: none; position: absolute; top: calc(100% + 2px); left: 0; right: 0;
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 7px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.10); max-height: 200px; overflow-y: auto; z-index: 200;
+  }
+  .search-dropdown.open { display: block; }
+  .search-item {
+    padding: 9px 14px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f0f4f8;
+  }
+  .search-item:last-child { border-bottom: none; }
+  .search-item:hover { background: #f7fafc; }
+  .row-delete { background: none; border: none; color: #fc8181; cursor: pointer; font-size: 18px; padding: 0 4px; line-height: 1; }
+  .row-delete:hover { color: #e53e3e; }
+</style>
+
+<script>
+  var phoneRowCount = 0;
+  var productRowCount = 0;
+  var productSearchTimers = {};
+
+  function addPhoneRow() {
+    var tbody = document.getElementById('phones-tbody');
+    var empty = document.getElementById('phones-empty');
+    if (empty) empty.remove();
+    phoneRowCount++;
+    var id = 'ph-' + phoneRowCount;
+    var tr = document.createElement('tr');
+    tr.id = id;
+    tr.innerHTML = '';
+
+    var tdPhone = document.createElement('td');
+    var inPhone = document.createElement('input');
+    inPhone.type = 'text';
+    inPhone.className = 'form-control';
+    inPhone.placeholder = '598 9X XXX XXX';
+    inPhone.dataset.role = 'phone';
+    tdPhone.appendChild(inPhone);
+
+    var tdLabel = document.createElement('td');
+    var inLabel = document.createElement('input');
+    inLabel.type = 'text';
+    inLabel.className = 'form-control';
+    inLabel.placeholder = 'dueño, encargado, WhatsApp…';
+    inLabel.dataset.role = 'label';
+    tdLabel.appendChild(inLabel);
+
+    var tdDel = document.createElement('td');
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'row-delete';
+    btn.textContent = '×';
+    btn.addEventListener('click', function() {
+      tr.remove();
+      if (!tbody.querySelector('tr')) {
+        var emp = document.createElement('tr');
+        emp.id = 'phones-empty';
+        emp.innerHTML = '<td colspan="3" class="table-empty">Sin teléfonos. Agregá uno con el botón.</td>';
+        tbody.appendChild(emp);
+      }
+    });
+    tdDel.appendChild(btn);
+
+    tr.appendChild(tdPhone);
+    tr.appendChild(tdLabel);
+    tr.appendChild(tdDel);
+    tbody.appendChild(tr);
+    inPhone.focus();
+  }
+
+  function addProductRow() {
+    var tbody = document.getElementById('products-tbody');
+    var empty = document.getElementById('products-empty');
+    if (empty) empty.remove();
+    productRowCount++;
+    var rowId = 'pr-' + productRowCount;
+    var tr = document.createElement('tr');
+    tr.id = rowId;
+
+    var tdSearch = document.createElement('td');
+    var wrap = document.createElement('div');
+    wrap.className = 'search-wrap';
+
+    var searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.className = 'form-control';
+    searchInput.placeholder = 'Buscar por nombre o código…';
+    searchInput.autocomplete = 'off';
+
+    var hiddenId = document.createElement('input');
+    hiddenId.type = 'hidden';
+    hiddenId.dataset.role = 'product_id';
+
+    var dropdown = document.createElement('div');
+    dropdown.className = 'search-dropdown';
+
+    var selectedLabel = document.createElement('div');
+    selectedLabel.style.cssText = 'font-size:12px;color:#4299e1;margin-top:4px;';
+
+    var timer = null;
+    searchInput.addEventListener('input', function() {
+      hiddenId.value = '';
+      selectedLabel.textContent = '';
+      var q = this.value.trim();
+      clearTimeout(timer);
+      if (!q) { dropdown.classList.remove('open'); return; }
+      var self = this;
+      timer = setTimeout(function() {
+        fetch('/api/products?search=' + encodeURIComponent(q))
+          .then(function(r) { return r.json(); })
+          .then(function(items) {
+            while (dropdown.firstChild) dropdown.removeChild(dropdown.firstChild);
+            if (!items.length) {
+              var d = document.createElement('div');
+              d.className = 'search-item';
+              d.style.color = '#a0aec0';
+              d.textContent = 'Sin resultados';
+              dropdown.appendChild(d);
+            } else {
+              items.forEach(function(p) {
+                var d = document.createElement('div');
+                d.className = 'search-item';
+                var strong = document.createElement('strong');
+                strong.textContent = p.nombre;
+                var code = document.createElement('span');
+                code.style.color = '#a0aec0';
+                code.textContent = ' (' + p.codigo_prod + ')';
+                d.appendChild(strong);
+                d.appendChild(code);
+                d.addEventListener('click', function() {
+                  hiddenId.value = p.id;
+                  searchInput.value = p.nombre + ' (' + p.codigo_prod + ')';
+                  selectedLabel.textContent = 'Seleccionado: ' + p.nombre;
+                  dropdown.classList.remove('open');
+                });
+                dropdown.appendChild(d);
+              });
+            }
+            dropdown.classList.add('open');
+          })
+          .catch(function() { dropdown.classList.remove('open'); });
+      }, 250);
+    });
+
+    document.addEventListener('click', function(e) {
+      if (!wrap.contains(e.target)) dropdown.classList.remove('open');
+    });
+
+    wrap.appendChild(searchInput);
+    wrap.appendChild(hiddenId);
+    wrap.appendChild(dropdown);
+    wrap.appendChild(selectedLabel);
+    tdSearch.appendChild(wrap);
+
+    var tdPrice = document.createElement('td');
+    var priceInput = document.createElement('input');
+    priceInput.type = 'number';
+    priceInput.step = '0.01';
+    priceInput.value = '0';
+    priceInput.className = 'form-control';
+    priceInput.dataset.role = 'precio_cliente';
+    tdPrice.appendChild(priceInput);
+
+    var tdDel = document.createElement('td');
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'row-delete';
+    btn.textContent = '×';
+    btn.addEventListener('click', function() {
+      tr.remove();
+      if (!tbody.querySelector('tr')) {
+        var emp = document.createElement('tr');
+        emp.id = 'products-empty';
+        emp.innerHTML = '<td colspan="3" class="table-empty">Sin productos. Agregá uno con el botón.</td>';
+        tbody.appendChild(emp);
+      }
+    });
+    tdDel.appendChild(btn);
+
+    tr.appendChild(tdSearch);
+    tr.appendChild(tdPrice);
+    tr.appendChild(tdDel);
+    tbody.appendChild(tr);
+    searchInput.focus();
+  }
+
+  function setLoading(loading) {
+    var btn = document.getElementById('save-btn');
+    btn.disabled = loading;
+    btn.textContent = loading ? 'Guardando…' : 'Guardar cliente';
+  }
+
+  function showError(msg) {
+    var el = document.getElementById('page-error');
+    el.textContent = msg;
+    el.style.display = 'block';
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function showWarning(msg) {
+    var el = document.getElementById('page-warning');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  async function saveClient() {
+    document.getElementById('page-error').style.display = 'none';
+    document.getElementById('page-warning').style.display = 'none';
+
+    var negocio = document.getElementById('f-negocio').value.trim();
+    if (!negocio) {
+      showError('El campo "Negocio" es requerido.');
+      document.getElementById('f-negocio').focus();
+      return;
+    }
+
+    setLoading(true);
+
+    var body = {
+      codigo_cliente: document.getElementById('f-codigo').value.trim() || null,
+      negocio: negocio,
+      sucursal: document.getElementById('f-sucursal').value.trim() || null,
+      razon_social: document.getElementById('f-razon-social').value.trim() || null,
+      rut: document.getElementById('f-rut').value.trim() || null,
+      direccion_facturacion: document.getElementById('f-dir-facturacion').value.trim() || null,
+      direccion_entrega: document.getElementById('f-dir-entrega').value.trim() || null,
+      horario_entrega: document.getElementById('f-horario').value.trim() || null,
+      activo: document.getElementById('f-activo').value,
+    };
+
+    var clientRes;
+    try {
+      clientRes = await fetch('/api/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      var clientData = await clientRes.json();
+      if (!clientRes.ok) {
+        setLoading(false);
+        showError(clientData.error || 'Error al crear el cliente.');
+        return;
+      }
+      var clientId = clientData.id;
+    } catch (e) {
+      setLoading(false);
+      showError('Error de red al crear el cliente. Verificá tu conexión.');
+      return;
+    }
+
+    var warnings = [];
+
+    var phoneRows = document.querySelectorAll('#phones-tbody tr[id^="ph-"]');
+    for (var i = 0; i < phoneRows.length; i++) {
+      var phone = phoneRows[i].querySelector('[data-role="phone"]').value.trim();
+      var label = phoneRows[i].querySelector('[data-role="label"]').value.trim();
+      if (!phone) continue;
+      try {
+        var r = await fetch('/api/clients/' + clientId + '/phones', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: phone, label: label }),
+        });
+        if (!r.ok) {
+          var d = await r.json();
+          warnings.push('Teléfono "' + phone + '": ' + (d.error || 'error desconocido'));
+        }
+      } catch (e) {
+        warnings.push('Teléfono "' + phone + '": error de red');
+      }
+    }
+
+    var productRows = document.querySelectorAll('#products-tbody tr[id^="pr-"]');
+    for (var j = 0; j < productRows.length; j++) {
+      var product_id = productRows[j].querySelector('[data-role="product_id"]').value;
+      var precio = productRows[j].querySelector('[data-role="precio_cliente"]').value;
+      if (!product_id) continue;
+      try {
+        var r2 = await fetch('/api/clients/' + clientId + '/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ product_id: product_id, precio_cliente: precio }),
+        });
+        if (!r2.ok) {
+          var d2 = await r2.json();
+          warnings.push('Producto id ' + product_id + ': ' + (d2.error || 'error desconocido'));
+        }
+      } catch (e) {
+        warnings.push('Producto id ' + product_id + ': error de red');
+      }
+    }
+
+    setLoading(false);
+
+    if (warnings.length) {
+      window.location.href = '/clients/' + clientId + '?error=1';
+    } else {
+      window.location.href = '/clients/' + clientId + '?success=1';
+    }
+  }
+</script>
+
+<%- include('../partials/footer') %>

@@ -31,6 +31,10 @@ router.get("/", async (req, res) => {
   }
 });
 
+router.get("/new", (req, res) => {
+  res.render("clients/new", { nombre: req.session.nombre, error: null });
+});
+
 router.get("/:id", async (req, res) => {
   const { success, error: qErr } = req.query as Record<string, string>;
   try {
