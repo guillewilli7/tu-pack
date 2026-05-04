@@ -2,6 +2,7 @@ import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
 import path from "path";
 import router from "./routes";
 import authRouter from "./routes/auth";
@@ -11,6 +12,7 @@ import clientsRouter from "./routes/clients";
 import productsRouter from "./routes/products";
 import { requireAuth } from "./middleware/auth";
 import { logger } from "./lib/logger";
+import { pool } from "./db";
 import "./session.d";
 
 const app: Express = express();
@@ -42,15 +44,22 @@ if (!sessionSecret) {
   throw new Error("SESSION_SECRET environment variable must be set.");
 }
 
+const PgStore = connectPgSimple(session);
+
 app.use(
   session({
+    store: new PgStore({
+      pool,
+      tableName: "session",
+      pruneSessionInterval: 60 * 60, // clean expired sessions every hour
+    }),
     secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
     cookie: {
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
-      maxAge: 8 * 60 * 60 * 1000, // 8 hours
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     },
   }),
 );
