@@ -147,9 +147,10 @@ router.post("/orders", async (req, res) => {
     notas?: string;
   };
   try {
+    const rawData = notas ? JSON.stringify({ notas }) : null;
     const { rows } = await pool.query(
-      `INSERT INTO orders (client_id, negocio, phone, status, items, total, notas, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, NOW(), NOW())
+      `INSERT INTO orders (client_id, negocio, phone, status, items, total, raw_data, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7::jsonb, NOW(), NOW())
        RETURNING id`,
       [
         client_id || null,
@@ -158,7 +159,7 @@ router.post("/orders", async (req, res) => {
         status || "pendiente",
         JSON.stringify(items || []),
         parseFloat(String(total)) || 0,
-        notas || null,
+        rawData,
       ]
     );
     res.json({ id: rows[0].id });
