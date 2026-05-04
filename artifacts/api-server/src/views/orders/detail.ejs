@@ -37,6 +37,9 @@
           </td>
         </tr>
         <tr><td style="padding:6px 0;color:#718096;">Total</td><td><strong>$<%= Number(order.total || 0).toFixed(2) %></strong></td></tr>
+        <% if (order.raw_data && order.raw_data.notas) { %>
+        <tr><td style="padding:6px 0;color:#718096;vertical-align:top;">Notas</td><td style="white-space:pre-wrap;"><%= order.raw_data.notas %></td></tr>
+        <% } %>
       </table>
     </div>
   </div>
