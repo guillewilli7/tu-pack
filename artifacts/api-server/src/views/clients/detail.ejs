@@ -95,7 +95,11 @@
                 <%= ratio ? ratio.toFixed(2) + 'x' : '—' %>
               </span>
             </td>
-            <td></td>
+            <td>
+              <form method="POST" action="/clients/<%= client.id %>/products/<%= p.cp_id %>/remove" style="display:inline;">
+                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar este producto del cliente?')">Eliminar</button>
+              </form>
+            </td>
           </tr>
         <% }) %>
       </tbody>

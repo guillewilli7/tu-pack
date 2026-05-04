@@ -115,6 +115,19 @@ router.post("/:id/products/add", async (req, res) => {
   }
 });
 
+router.post("/:id/products/:cpId/remove", async (req, res) => {
+  try {
+    await pool.query("DELETE FROM client_products WHERE id=$1 AND client_id=$2", [
+      req.params.cpId,
+      req.params.id,
+    ]);
+    res.redirect(`/clients/${req.params.id}?success=1`);
+  } catch (err) {
+    console.error(err);
+    res.redirect(`/clients/${req.params.id}?error=1`);
+  }
+});
+
 router.post("/:id/phones/add", async (req, res) => {
   const { phone, label } = req.body as Record<string, string>;
   try {
