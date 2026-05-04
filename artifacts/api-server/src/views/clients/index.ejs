@@ -1,6 +1,8 @@
 <%- include('../partials/header', { title: 'Clientes', page: 'clients', nombre }) %>
 
-<% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+<% if (success === 'deactivated') { %><div class="alert alert-success">Cliente desactivado correctamente.</div><% } %>
+<% if (success === 'deleted') { %><div class="alert alert-success">Cliente eliminado correctamente.</div><% } %>
+<% if (error) { %><div class="alert alert-error">Error al realizar la acción. Intente nuevamente.</div><% } %>
 
 <div class="card section">
   <div class="card-header">
@@ -48,7 +50,14 @@
             <td><strong><%= c.negocio %></strong></td>
             <td><%= c.sucursal || '—' %></td>
             <td><span class="badge <%= c.activo ? 'badge-green' : 'badge-red' %>"><%= c.activo ? 'Activo' : 'Inactivo' %></span></td>
-            <td onclick="event.stopPropagation()"><a href="/clients/<%= c.id %>" class="btn btn-sm btn-secondary">Ver</a></td>
+            <td onclick="event.stopPropagation()" style="white-space:nowrap;">
+              <a href="/clients/<%= c.id %>" class="btn btn-sm btn-secondary">Ver</a>
+              <% if (c.activo) { %>
+                <form method="POST" action="/clients/<%= c.id %>/deactivate" style="display:inline;margin-left:6px;" data-name="<%= c.negocio %>">
+                  <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('¿Desactivar a ' + this.closest('form').dataset.name + '?')">Desactivar</button>
+                </form>
+              <% } %>
+            </td>
           </tr>
         <% }) %>
       </tbody>

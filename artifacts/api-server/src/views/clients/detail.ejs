@@ -2,9 +2,13 @@
 
 <div class="flex gap-2 items-center" style="margin-bottom:20px;">
   <a href="/clients" class="btn btn-secondary btn-sm">← Volver</a>
+  <form method="POST" action="/clients/<%= client.id %>/delete" style="margin-left:auto;" data-name="<%= client.negocio %>">
+    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar a ' + this.closest('form').dataset.name + '? Esta acción desactivará al cliente.')">Eliminar cliente</button>
+  </form>
 </div>
 
 <% if (success) { %><div class="alert alert-success">Cambios guardados correctamente.</div><% } %>
+<% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
 
 <div class="card section">
   <div class="card-header"><span class="card-title">Datos del cliente</span></div>

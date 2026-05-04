@@ -4,7 +4,7 @@ import { pool } from "../db";
 const router = Router();
 
 router.get("/", async (req, res) => {
-  const { search } = req.query as Record<string, string>;
+  const { search, success, error: qErr } = req.query as Record<string, string>;
   try {
     let query = `SELECT id, codigo_cliente, negocio, sucursal, activo FROM clients WHERE 1=1`;
     const params: unknown[] = [];
@@ -18,7 +18,8 @@ router.get("/", async (req, res) => {
       clients: rows,
       search: search || "",
       nombre: req.session.nombre,
-      error: null,
+      success: success || null,
+      error: qErr || null,
     });
   } catch (err) {
     console.error(err);
@@ -26,6 +27,7 @@ router.get("/", async (req, res) => {
       clients: [],
       search: "",
       nombre: req.session.nombre,
+      success: null,
       error: "Error al cargar clientes.",
     });
   }
@@ -157,6 +159,26 @@ router.post("/:id/phones/:phoneId/deactivate", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.redirect(`/clients/${req.params.id}?error=1`);
+  }
+});
+
+router.post("/:id/deactivate", async (req, res) => {
+  try {
+    await pool.query("UPDATE clients SET activo=false, updated_at=NOW() WHERE id=$1", [req.params.id]);
+    res.redirect("/clients?success=deactivated");
+  } catch (err) {
+    console.error(err);
+    res.redirect("/clients?error=deactivate");
+  }
+});
+
+router.post("/:id/delete", async (req, res) => {
+  try {
+    await pool.query("UPDATE clients SET activo=false, updated_at=NOW() WHERE id=$1", [req.params.id]);
+    res.redirect("/clients?success=deleted");
+  } catch (err) {
+    console.error(err);
+    res.redirect("/clients?error=delete");
   }
 });
 
