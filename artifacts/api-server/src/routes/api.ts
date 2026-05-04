@@ -155,7 +155,7 @@ router.post("/orders", async (req, res) => {
       [
         client_id || null,
         negocio || null,
-        phone || null,
+        phone || "",
         status || "pendiente",
         JSON.stringify(items || []),
         parseFloat(String(total)) || 0,
