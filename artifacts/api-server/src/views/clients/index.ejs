@@ -1,0 +1,58 @@
+<%- include('../partials/header', { title: 'Clientes', page: 'clients', nombre }) %>
+
+<% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+<div class="card section">
+  <div class="card-header">
+    <span class="card-title">Buscar</span>
+  </div>
+  <div class="card-body">
+    <form method="GET" action="/clients">
+      <div class="filter-bar">
+        <div class="form-group" style="flex:1;min-width:200px;">
+          <label class="form-label">Nombre o código</label>
+          <input type="text" name="search" class="form-control" value="<%= search %>" placeholder="Buscar cliente..." />
+        </div>
+        <div class="form-group">
+          <button type="submit" class="btn btn-primary">Buscar</button>
+          <a href="/clients" class="btn btn-secondary" style="margin-left:8px;">Limpiar</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Clientes (<%= clients.length %>)</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Negocio</th>
+          <th>Sucursal</th>
+          <th>Estado</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (!clients.length) { %>
+          <tr><td colspan="5" class="table-empty">No se encontraron clientes.</td></tr>
+        <% } %>
+        <% clients.forEach(function(c) { %>
+          <tr>
+            <td class="text-muted"><%= c.codigo_cliente || '—' %></td>
+            <td><strong><%= c.negocio %></strong></td>
+            <td><%= c.sucursal || '—' %></td>
+            <td><span class="badge <%= c.activo ? 'badge-green' : 'badge-red' %>"><%= c.activo ? 'Activo' : 'Inactivo' %></span></td>
+            <td><a href="/clients/<%= c.id %>" class="btn btn-sm btn-secondary">Ver</a></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

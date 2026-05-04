@@ -1,0 +1,211 @@
+<%- include('../partials/header', { title: 'Cliente: ' + client.negocio, page: 'clients', nombre }) %>
+
+<div class="flex gap-2 items-center" style="margin-bottom:20px;">
+  <a href="/clients" class="btn btn-secondary btn-sm">← Volver</a>
+</div>
+
+<% if (success) { %><div class="alert alert-success">Cambios guardados correctamente.</div><% } %>
+
+<div class="card section">
+  <div class="card-header"><span class="card-title">Datos del cliente</span></div>
+  <div class="card-body">
+    <form method="POST" action="/clients/<%= client.id %>/update">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Negocio</label>
+          <input name="negocio" class="form-control" value="<%= client.negocio || '' %>" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Sucursal</label>
+          <input name="sucursal" class="form-control" value="<%= client.sucursal || '' %>" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Razón social</label>
+          <input name="razon_social" class="form-control" value="<%= client.razon_social || '' %>" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">RUT</label>
+          <input name="rut" class="form-control" value="<%= client.rut || '' %>" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Dirección de facturación</label>
+          <input name="direccion_facturacion" class="form-control" value="<%= client.direccion_facturacion || '' %>" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Dirección de entrega</label>
+          <input name="direccion_entrega" class="form-control" value="<%= client.direccion_entrega || '' %>" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Horario de entrega</label>
+          <input name="horario_entrega" class="form-control" value="<%= client.horario_entrega || '' %>" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Estado</label>
+          <select name="activo" class="form-control">
+            <option value="true" <%= client.activo ? 'selected' : '' %>>Activo</option>
+            <option value="false" <%= !client.activo ? 'selected' : '' %>>Inactivo</option>
+          </select>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary">Guardar cambios</button>
+    </form>
+  </div>
+</div>
+
+<div class="card section">
+  <div class="card-header">
+    <span class="card-title">Productos del cliente (<%= clientProducts.length %>)</span>
+    <button class="btn btn-sm btn-primary" onclick="document.getElementById('add-product-modal').classList.add('open')">+ Agregar producto</button>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th>Costo</th>
+          <th>Precio cliente</th>
+          <th>Ratio</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (!clientProducts.length) { %>
+          <tr><td colspan="5" class="table-empty">No hay productos asignados.</td></tr>
+        <% } %>
+        <% clientProducts.forEach(function(p) { %>
+          <tr>
+            <td><strong><%= p.nombre %></strong> <span class="text-muted"><%= p.codigo_prod %></span></td>
+            <td>$<%= Number(p.costo || 0).toFixed(2) %></td>
+            <td>
+              <form class="inline-form" method="POST" action="/clients/<%= client.id %>/products/update-price">
+                <input type="hidden" name="cp_id" value="<%= p.cp_id %>" />
+                <input type="number" name="precio_cliente" class="form-control" step="0.01" value="<%= Number(p.precio_cliente || 0).toFixed(2) %>" style="width:100px;" />
+                <button type="submit" class="btn btn-sm btn-primary">OK</button>
+              </form>
+            </td>
+            <td>
+              <% const ratio = p.costo > 0 ? (p.precio_cliente / p.costo) : null; %>
+              <span class="badge <%= ratio && ratio > 1 ? 'badge-blue' : 'badge-gray' %>">
+                <%= ratio ? ratio.toFixed(2) + 'x' : '—' %>
+              </span>
+            </td>
+            <td></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card section">
+  <div class="card-header">
+    <span class="card-title">Teléfonos (<%= phones.length %>)</span>
+    <button class="btn btn-sm btn-primary" onclick="document.getElementById('add-phone-modal').classList.add('open')">+ Agregar teléfono</button>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Teléfono</th>
+          <th>Etiqueta</th>
+          <th>Estado</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (!phones.length) { %>
+          <tr><td colspan="4" class="table-empty">No hay teléfonos registrados.</td></tr>
+        <% } %>
+        <% phones.forEach(function(ph) { %>
+          <tr>
+            <td><strong><%= ph.phone %></strong></td>
+            <td><%= ph.label || '—' %></td>
+            <td><span class="badge <%= ph.activo ? 'badge-green' : 'badge-red' %>"><%= ph.activo ? 'Activo' : 'Inactivo' %></span></td>
+            <td>
+              <% if (ph.activo) { %>
+                <form method="POST" action="/clients/<%= client.id %>/phones/<%= ph.id %>/deactivate" style="display:inline;">
+                  <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('¿Desactivar este teléfono?')">Desactivar</button>
+                </form>
+              <% } %>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Add Product Modal -->
+<div class="modal-backdrop" id="add-product-modal">
+  <div class="modal">
+    <h3>Agregar producto</h3>
+    <form method="POST" action="/clients/<%= client.id %>/products/add">
+      <div class="form-group">
+        <label class="form-label">Producto</label>
+        <select name="product_id" class="form-control" id="product-select">
+          <option value="">Seleccionar...</option>
+          <% allProducts.forEach(function(p) { %>
+            <option value="<%= p.id %>"><%= p.nombre %> (<%= p.codigo_prod %>)</option>
+          <% }) %>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Precio cliente ($)</label>
+        <input type="number" name="precio_cliente" class="form-control" step="0.01" value="0" required />
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('add-product-modal').classList.remove('open')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Agregar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Add Phone Modal -->
+<div class="modal-backdrop" id="add-phone-modal">
+  <div class="modal">
+    <h3>Agregar teléfono</h3>
+    <form method="POST" action="/clients/<%= client.id %>/phones/add">
+      <div class="form-group">
+        <label class="form-label">Número de teléfono</label>
+        <input type="text" name="phone" class="form-control" placeholder="598 9X XXX XXX" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Etiqueta</label>
+        <input type="text" name="label" class="form-control" placeholder="Principal, WhatsApp, etc." />
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('add-phone-modal').classList.remove('open')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  // Close modal on backdrop click
+  document.querySelectorAll('.modal-backdrop').forEach(function(bd) {
+    bd.addEventListener('click', function(e) {
+      if (e.target === bd) bd.classList.remove('open');
+    });
+  });
+  // Simple product search filter
+  const sel = document.getElementById('product-select');
+  if (sel) {
+    const opts = Array.from(sel.options).slice(1);
+    sel.addEventListener('input', function() {
+      const q = this.value.toLowerCase();
+      opts.forEach(function(o) {
+        o.style.display = o.text.toLowerCase().includes(q) ? '' : 'none';
+      });
+    });
+  }
+</script>
+
+<%- include('../partials/footer') %>

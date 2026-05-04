@@ -1,0 +1,162 @@
+<%- include('../partials/header', { title: 'Productos', page: 'products', nombre }) %>
+
+<% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+<% if (success) { %><div class="alert alert-success">Producto guardado correctamente.</div><% } %>
+
+<div class="card section">
+  <div class="card-header">
+    <span class="card-title">Buscar</span>
+  </div>
+  <div class="card-body">
+    <form method="GET" action="/products">
+      <div class="filter-bar">
+        <div class="form-group" style="flex:1;min-width:200px;">
+          <label class="form-label">Nombre o código</label>
+          <input type="text" name="search" class="form-control" value="<%= search %>" placeholder="Buscar producto..." />
+        </div>
+        <div class="form-group">
+          <button type="submit" class="btn btn-primary">Buscar</button>
+          <a href="/products" class="btn btn-secondary" style="margin-left:8px;">Limpiar</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Productos (<%= products.length %>)</span>
+    <button class="btn btn-sm btn-primary" onclick="document.getElementById('add-modal').classList.add('open')">+ Nuevo producto</button>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Nombre</th>
+          <th>Unidad</th>
+          <th>Costo</th>
+          <th>Estado</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (!products.length) { %>
+          <tr><td colspan="6" class="table-empty">No se encontraron productos.</td></tr>
+        <% } %>
+        <% products.forEach(function(p) { %>
+          <tr>
+            <td class="text-muted"><%= p.codigo_prod || '—' %></td>
+            <td><strong><%= p.nombre %></strong></td>
+            <td><%= p.unidad || '—' %></td>
+            <td>$<%= Number(p.costo || 0).toFixed(2) %></td>
+            <td><span class="badge <%= p.activo ? 'badge-green' : 'badge-red' %>"><%= p.activo ? 'Activo' : 'Inactivo' %></span></td>
+            <td>
+              <button class="btn btn-sm btn-secondary" onclick="openEdit(<%= JSON.stringify(p) %>)">Editar</button>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Add Modal -->
+<div class="modal-backdrop" id="add-modal">
+  <div class="modal">
+    <h3>Nuevo producto</h3>
+    <form method="POST" action="/products/add">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Código</label>
+          <input name="codigo_prod" class="form-control" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Unidad</label>
+          <input name="unidad" class="form-control" placeholder="UN, KG, etc." />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nombre</label>
+        <input name="nombre" class="form-control" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descripción</label>
+        <input name="descripcion" class="form-control" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Costo ($)</label>
+        <input type="number" name="costo" step="0.01" class="form-control" value="0" required />
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('add-modal').classList.remove('open')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Crear</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-backdrop" id="edit-modal">
+  <div class="modal">
+    <h3>Editar producto</h3>
+    <form method="POST" id="edit-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Código</label>
+          <input name="codigo_prod" id="edit-codigo" class="form-control" readonly style="background:#f7fafc;" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Unidad</label>
+          <input name="unidad" id="edit-unidad" class="form-control" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nombre</label>
+        <input name="nombre" id="edit-nombre" class="form-control" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descripción</label>
+        <input name="descripcion" id="edit-descripcion" class="form-control" />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Costo ($)</label>
+          <input type="number" name="costo" id="edit-costo" step="0.01" class="form-control" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Estado</label>
+          <select name="activo" id="edit-activo" class="form-control">
+            <option value="true">Activo</option>
+            <option value="false">Inactivo</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('edit-modal').classList.remove('open')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('.modal-backdrop').forEach(function(bd) {
+    bd.addEventListener('click', function(e) {
+      if (e.target === bd) bd.classList.remove('open');
+    });
+  });
+
+  function openEdit(p) {
+    document.getElementById('edit-form').action = '/products/' + p.id + '/update';
+    document.getElementById('edit-codigo').value = p.codigo_prod || '';
+    document.getElementById('edit-nombre').value = p.nombre || '';
+    document.getElementById('edit-descripcion').value = p.descripcion || '';
+    document.getElementById('edit-unidad').value = p.unidad || '';
+    document.getElementById('edit-costo').value = Number(p.costo || 0).toFixed(2);
+    document.getElementById('edit-activo').value = p.activo ? 'true' : 'false';
+    document.getElementById('edit-modal').classList.add('open');
+  }
+</script>
+
+<%- include('../partials/footer') %>

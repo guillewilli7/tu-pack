@@ -1,0 +1,106 @@
+<%- include('../partials/header', { title: 'Detalle de Orden #' + order.id, page: 'orders', nombre }) %>
+
+<div class="flex gap-2 items-center" style="margin-bottom:20px;">
+  <a href="/orders" class="btn btn-secondary btn-sm">← Volver</a>
+</div>
+
+<% if (success) { %><div class="alert alert-success">Orden actualizada correctamente.</div><% } %>
+<% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;" class="section">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Información</span></div>
+    <div class="card-body">
+      <table style="font-size:14px;width:100%;border-collapse:collapse;">
+        <tr><td style="padding:6px 0;color:#718096;width:140px;">ID</td><td><strong>#<%= order.id %></strong></td></tr>
+        <tr><td style="padding:6px 0;color:#718096;">Fecha</td><td><%= new Date(order.created_at).toLocaleString('es-UY') %></td></tr>
+        <tr><td style="padding:6px 0;color:#718096;">Negocio</td><td><%= order.negocio || order.client_negocio || '—' %></td></tr>
+        <tr><td style="padding:6px 0;color:#718096;">Teléfono</td><td><%= order.phone || '—' %></td></tr>
+        <tr><td style="padding:6px 0;color:#718096;">Cliente</td><td><% if (order.client_id) { %><a href="/clients/<%= order.client_id %>" class="btn-link"><%= order.client_negocio || order.codigo_cliente || order.client_id %></a><% } else { %>—<% } %></td></tr>
+        <tr><td style="padding:6px 0;color:#718096;">Estado</td>
+          <td>
+            <% if (order.status === 'pendiente') { %><span class="badge badge-yellow">Pendiente</span>
+            <% } else if (order.status === 'confirmado') { %><span class="badge badge-green">Confirmado</span>
+            <% } else if (order.status === 'cancelado') { %><span class="badge badge-red">Cancelado</span>
+            <% } else { %><span class="badge badge-gray"><%= order.status %></span><% } %>
+          </td>
+        </tr>
+        <tr><td style="padding:6px 0;color:#718096;">Total</td><td><strong>$<%= Number(order.total || 0).toFixed(2) %></strong></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">Editar orden</span></div>
+    <div class="card-body">
+      <form method="POST" action="/orders/<%= order.id %>">
+        <div class="form-group">
+          <label class="form-label">Estado</label>
+          <select name="status" class="form-control">
+            <option value="pendiente" <%= order.status === 'pendiente' ? 'selected' : '' %>>Pendiente</option>
+            <option value="confirmado" <%= order.status === 'confirmado' ? 'selected' : '' %>>Confirmado</option>
+            <option value="cancelado" <%= order.status === 'cancelado' ? 'selected' : '' %>>Cancelado</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Total ($)</label>
+          <input type="number" name="total" step="0.01" class="form-control" value="<%= order.total || 0 %>" />
+        </div>
+        <div class="flex gap-2">
+          <button type="submit" name="action" value="update" class="btn btn-primary">Guardar</button>
+          <% if (order.status !== 'cancelado') { %>
+            <button type="submit" name="action" value="cancel" class="btn btn-danger" onclick="return confirm('¿Cancelar esta orden?')">Cancelar orden</button>
+          <% } %>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="card section">
+  <div class="card-header"><span class="card-title">Artículos del pedido</span></div>
+  <div class="table-wrap">
+    <% const items = order.items; %>
+    <% if (!items || (Array.isArray(items) && !items.length)) { %>
+      <div class="table-empty">No hay artículos registrados.</div>
+    <% } else { %>
+      <table>
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>Cantidad</th>
+            <th>Precio unit.</th>
+            <th>Subtotal</th>
+            <th>Notas</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% const itemList = Array.isArray(items) ? items : (typeof items === 'object' ? Object.values(items) : []); %>
+          <% itemList.forEach(function(item) { %>
+            <tr>
+              <td><strong><%= item.nombre || item.name || item.producto || item.product || JSON.stringify(item).slice(0,60) %></strong></td>
+              <td><%= item.cantidad || item.qty || item.quantity || '—' %></td>
+              <td><%= item.precio || item.price || item.precio_unitario ? '$' + Number(item.precio || item.price || item.precio_unitario || 0).toFixed(2) : '—' %></td>
+              <td><%= item.subtotal ? '$' + Number(item.subtotal).toFixed(2) : '—' %></td>
+              <td class="text-muted"><%= item.notas || item.notes || '' %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</div>
+
+<% if (order.raw_data) { %>
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Datos crudos</span>
+    <button class="btn btn-sm btn-secondary" onclick="document.getElementById('raw-data').style.display=document.getElementById('raw-data').style.display==='none'?'block':'none'">Mostrar / Ocultar</button>
+  </div>
+  <div class="card-body" id="raw-data" style="display:none;">
+    <pre style="font-size:12px;background:#f7fafc;padding:16px;border-radius:6px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;"><%= JSON.stringify(order.raw_data, null, 2) %></pre>
+  </div>
+</div>
+<% } %>
+
+<%- include('../partials/footer') %>
