@@ -14,6 +14,9 @@ import "./session.d";
 
 const app: Express = express();
 
+// Trust the first proxy hop so secure cookies work correctly behind a reverse proxy
+app.set("trust proxy", 1);
+
 app.use(
   pinoHttp({
     logger,
@@ -32,7 +35,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session middleware — require SESSION_SECRET to be set (no insecure default in production)
+// Session middleware — SESSION_SECRET must be set
 const sessionSecret = process.env.SESSION_SECRET;
 if (!sessionSecret) {
   throw new Error("SESSION_SECRET environment variable must be set.");
@@ -51,7 +54,7 @@ app.use(
   }),
 );
 
-// EJS views — point to dist/views (copied there during build)
+// EJS views — copied to dist/views during build
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
@@ -68,7 +71,7 @@ app.get("/", requireAuth, (_req, res) => {
   res.redirect("/orders");
 });
 
-// Existing API routes
-app.use("/api", router);
+// API routes also require auth (all routes must redirect unauthenticated visitors)
+app.use("/api", requireAuth, router);
 
 export default app;
