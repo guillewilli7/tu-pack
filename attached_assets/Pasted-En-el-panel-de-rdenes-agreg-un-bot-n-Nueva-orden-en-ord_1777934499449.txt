@@ -1,0 +1,33 @@
+En el panel de órdenes, agregá un botón "Nueva orden" en /orders. Al clickearlo abre un formulario con las siguientes secciones y comportamiento:
+
+**Sección 1 — Selección de cliente**
+Un campo de búsqueda con autocomplete que consulta GET /api/clients?search=texto filtrando por nombre de negocio. Muestra los resultados como dropdown. Al final del dropdown, siempre visible, un botón "Agregar nuevo cliente" que abre /clients/new en una nueva pestaña. Al seleccionar un cliente del dropdown, carga automáticamente sus datos y productos asociados.
+
+**Sección 2 — Datos del cliente (readonly)**
+Una vez seleccionado el cliente, mostrar: negocio, sucursal, direccion_entrega, horario_entrega. Estos campos son solo de visualización, no editables.
+
+**Sección 3 — Líneas del pedido**
+Tabla con las siguientes columnas: Producto (dropdown con los productos asociados al cliente, cargados desde GET /api/clients/:id/products), Cantidad (número), Precio unitario (se autocompleta con precio_cliente del producto seleccionado, editable), Subtotal (calculado automáticamente: cantidad x precio unitario), Eliminar (botón para quitar la fila).
+
+Botón "Agregar línea" para sumar una nueva fila vacía.
+
+**Sección 4 — Totales y confirmación**
+Total general calculado en tiempo real sumando todos los subtotales. Se actualiza automáticamente cada vez que cambia una cantidad o precio unitario. Campo de notas opcional. Botón "Confirmar orden".
+
+**Lógica de guardado**
+Al confirmar hacer POST /api/orders con:
+{
+  phone: null,
+  client_id: id del cliente seleccionado,
+  negocio: nombre del negocio,
+  status: "pendiente",
+  items: array de { product_id, codigo_prod, nombre_catalogo, cantidad, precio_unitario, subtotal },
+  total: total calculado
+}
+
+**Validaciones**
+- No permitir confirmar si no hay cliente seleccionado
+- No permitir confirmar si no hay al menos una línea con producto y cantidad mayor a 0
+- Mostrar error claro si falla el guardado
+
+No crear nuevas tablas ni modificar el schema. Usar solo DATABASE_URL.
