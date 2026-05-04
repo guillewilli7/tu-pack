@@ -37,10 +37,10 @@
       </div>
       <div class="form-group">
         <label class="form-label">Estado</label>
-        <select id="f-activo" class="form-control">
-          <option value="true">Activo</option>
-          <option value="false">Inactivo</option>
-        </select>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+          <input type="checkbox" id="f-activo" checked style="width:16px;height:16px;cursor:pointer;" />
+          <label for="f-activo" style="font-size:14px;color:#2d3748;cursor:pointer;">Activo</label>
+        </div>
       </div>
     </div>
     <div class="form-row">
@@ -252,10 +252,6 @@
       }, 250);
     });
 
-    document.addEventListener('click', function(e) {
-      if (!wrap.contains(e.target)) dropdown.classList.remove('open');
-    });
-
     wrap.appendChild(searchInput);
     wrap.appendChild(hiddenId);
     wrap.appendChild(dropdown);
@@ -293,6 +289,12 @@
     tbody.appendChild(tr);
     searchInput.focus();
   }
+
+  document.addEventListener('click', function(e) {
+    document.querySelectorAll('.search-dropdown.open').forEach(function(dd) {
+      if (!dd.parentElement.contains(e.target)) dd.classList.remove('open');
+    });
+  });
 
   function setLoading(loading) {
     var btn = document.getElementById('save-btn');
@@ -335,7 +337,7 @@
       direccion_facturacion: document.getElementById('f-dir-facturacion').value.trim() || null,
       direccion_entrega: document.getElementById('f-dir-entrega').value.trim() || null,
       horario_entrega: document.getElementById('f-horario').value.trim() || null,
-      activo: document.getElementById('f-activo').value,
+      activo: document.getElementById('f-activo').checked ? 'true' : 'false',
     };
 
     var clientRes;
