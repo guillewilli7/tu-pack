@@ -17,7 +17,7 @@ router.get("/", async (req, res) => {
     res.render("clients/index", {
       clients: rows,
       search: search || "",
-      nombre: (req.session as any).nombre,
+      nombre: req.session.nombre,
       error: null,
     });
   } catch (err) {
@@ -25,7 +25,7 @@ router.get("/", async (req, res) => {
     res.render("clients/index", {
       clients: [],
       search: "",
-      nombre: (req.session as any).nombre,
+      nombre: req.session.nombre,
       error: "Error al cargar clientes.",
     });
   }
@@ -53,7 +53,7 @@ router.get("/:id", async (req, res) => {
       clientProducts: productsRes.rows,
       allProducts: allProductsRes.rows,
       phones: phonesRes.rows,
-      nombre: (req.session as any).nombre,
+      nombre: req.session.nombre,
       success: req.query.success || null,
       error: null,
     });

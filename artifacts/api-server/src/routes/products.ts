@@ -17,7 +17,7 @@ router.get("/", async (req, res) => {
     res.render("products/index", {
       products: rows,
       search: search || "",
-      nombre: (req.session as any).nombre,
+      nombre: req.session.nombre,
       success: req.query.success || null,
       error: null,
     });
@@ -26,7 +26,7 @@ router.get("/", async (req, res) => {
     res.render("products/index", {
       products: [],
       search: "",
-      nombre: (req.session as any).nombre,
+      nombre: req.session.nombre,
       success: null,
       error: "Error al cargar productos.",
     });

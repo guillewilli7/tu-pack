@@ -61,7 +61,7 @@
 <div class="card section">
   <div class="card-header">
     <span class="card-title">Productos del cliente (<%= clientProducts.length %>)</span>
-    <button class="btn btn-sm btn-primary" onclick="document.getElementById('add-product-modal').classList.add('open')">+ Agregar producto</button>
+    <button class="btn btn-sm btn-primary" onclick="openAddProductModal()">+ Agregar producto</button>
   </div>
   <div class="table-wrap">
     <table>
@@ -141,26 +141,26 @@
   </div>
 </div>
 
-<!-- Add Product Modal -->
+<!-- Add Product Modal with searchable dropdown -->
 <div class="modal-backdrop" id="add-product-modal">
   <div class="modal">
     <h3>Agregar producto</h3>
-    <form method="POST" action="/clients/<%= client.id %>/products/add">
+    <form method="POST" action="/clients/<%= client.id %>/products/add" id="add-product-form">
       <div class="form-group">
-        <label class="form-label">Producto</label>
-        <select name="product_id" class="form-control" id="product-select">
-          <option value="">Seleccionar...</option>
-          <% allProducts.forEach(function(p) { %>
-            <option value="<%= p.id %>"><%= p.nombre %> (<%= p.codigo_prod %>)</option>
-          <% }) %>
-        </select>
+        <label class="form-label">Buscar producto</label>
+        <input type="text" id="product-search-input" class="form-control" placeholder="Escribir nombre o código..." autocomplete="off" />
+        <div id="product-dropdown" style="position:relative;">
+          <div id="product-list" style="display:none;position:absolute;top:2px;left:0;right:0;background:#fff;border:1px solid #e2e8f0;border-radius:7px;box-shadow:0 4px 16px rgba(0,0,0,0.1);max-height:200px;overflow-y:auto;z-index:200;"></div>
+        </div>
+        <input type="hidden" name="product_id" id="selected-product-id" required />
+        <div id="selected-product-label" style="margin-top:6px;font-size:13px;color:#4299e1;display:none;"></div>
       </div>
       <div class="form-group">
         <label class="form-label">Precio cliente ($)</label>
         <input type="number" name="precio_cliente" class="form-control" step="0.01" value="0" required />
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" onclick="document.getElementById('add-product-modal').classList.remove('open')">Cancelar</button>
+        <button type="button" class="btn btn-secondary" onclick="closeAddProductModal()">Cancelar</button>
         <button type="submit" class="btn btn-primary">Agregar</button>
       </div>
     </form>
@@ -189,23 +189,66 @@
 </div>
 
 <script>
+  // All products data for searchable dropdown
+  const allProducts = <%- JSON.stringify(allProducts) %>;
+
   // Close modal on backdrop click
   document.querySelectorAll('.modal-backdrop').forEach(function(bd) {
     bd.addEventListener('click', function(e) {
       if (e.target === bd) bd.classList.remove('open');
     });
   });
-  // Simple product search filter
-  const sel = document.getElementById('product-select');
-  if (sel) {
-    const opts = Array.from(sel.options).slice(1);
-    sel.addEventListener('input', function() {
-      const q = this.value.toLowerCase();
-      opts.forEach(function(o) {
-        o.style.display = o.text.toLowerCase().includes(q) ? '' : 'none';
-      });
-    });
+
+  function openAddProductModal() {
+    document.getElementById('add-product-modal').classList.add('open');
+    document.getElementById('product-search-input').value = '';
+    document.getElementById('selected-product-id').value = '';
+    document.getElementById('selected-product-label').style.display = 'none';
+    document.getElementById('product-list').style.display = 'none';
+    setTimeout(function() { document.getElementById('product-search-input').focus(); }, 100);
   }
+
+  function closeAddProductModal() {
+    document.getElementById('add-product-modal').classList.remove('open');
+  }
+
+  function selectProduct(id, label) {
+    document.getElementById('selected-product-id').value = id;
+    document.getElementById('product-search-input').value = label;
+    var lbl = document.getElementById('selected-product-label');
+    lbl.textContent = 'Seleccionado: ' + label;
+    lbl.style.display = 'block';
+    document.getElementById('product-list').style.display = 'none';
+  }
+
+  var searchInput = document.getElementById('product-search-input');
+  var productList = document.getElementById('product-list');
+
+  searchInput.addEventListener('input', function() {
+    var q = this.value.toLowerCase().trim();
+    if (!q) { productList.style.display = 'none'; return; }
+    var matches = allProducts.filter(function(p) {
+      return p.nombre.toLowerCase().includes(q) || (p.codigo_prod && p.codigo_prod.toLowerCase().includes(q));
+    }).slice(0, 20);
+    if (!matches.length) {
+      productList.innerHTML = '<div style="padding:10px 14px;color:#a0aec0;font-size:13px;">Sin resultados</div>';
+    } else {
+      productList.innerHTML = matches.map(function(p) {
+        return '<div onclick="selectProduct(' + p.id + ', \'' + (p.nombre + ' (' + p.codigo_prod + ')').replace(/'/g,"&#39;") + '\')" '
+          + 'style="padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid #f0f4f8;" '
+          + 'onmouseover="this.style.background=\'#f7fafc\'" onmouseout="this.style.background=\'\'">'
+          + '<strong>' + p.nombre + '</strong> <span style="color:#a0aec0;">(' + p.codigo_prod + ')</span></div>';
+      }).join('');
+    }
+    productList.style.display = 'block';
+  });
+
+  // Hide dropdown when clicking outside
+  document.addEventListener('click', function(e) {
+    if (!document.getElementById('product-dropdown').contains(e.target) && e.target !== searchInput) {
+      productList.style.display = 'none';
+    }
+  });
 </script>
 
 <%- include('../partials/footer') %>

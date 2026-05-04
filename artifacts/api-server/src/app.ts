@@ -10,6 +10,7 @@ import clientsRouter from "./routes/clients";
 import productsRouter from "./routes/products";
 import { requireAuth } from "./middleware/auth";
 import { logger } from "./lib/logger";
+import "./session.d";
 
 const app: Express = express();
 
@@ -31,13 +32,22 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session middleware
+// Session middleware — require SESSION_SECRET to be set (no insecure default in production)
+const sessionSecret = process.env.SESSION_SECRET;
+if (!sessionSecret) {
+  throw new Error("SESSION_SECRET environment variable must be set.");
+}
+
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "tupack-dev-secret",
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: false, maxAge: 8 * 60 * 60 * 1000 }, // 8 hours
+    cookie: {
+      secure: process.env.NODE_ENV === "production",
+      httpOnly: true,
+      maxAge: 8 * 60 * 60 * 1000, // 8 hours
+    },
   }),
 );
 

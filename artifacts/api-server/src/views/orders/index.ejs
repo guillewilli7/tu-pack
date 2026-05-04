@@ -37,7 +37,14 @@
 
 <div class="card">
   <div class="card-header">
-    <span class="card-title">Órdenes (<%= orders.length %>)</span>
+    <span class="card-title">
+      Órdenes (<%= pagination.totalCount %>)
+      <% if (pagination.totalPages > 1) { %>
+        <span class="text-muted" style="font-size:12px;margin-left:8px;">
+          Página <%= pagination.currentPage %> de <%= pagination.totalPages %>
+        </span>
+      <% } %>
+    </span>
   </div>
   <div class="table-wrap">
     <table>
@@ -78,6 +85,26 @@
       </tbody>
     </table>
   </div>
+
+  <% if (pagination.totalPages > 1) { %>
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-top:1px solid #e2e8f0;">
+    <span class="text-muted">
+      <%= ((pagination.currentPage - 1) * pagination.pageSize) + 1 %>–<%= Math.min(pagination.currentPage * pagination.pageSize, pagination.totalCount) %> de <%= pagination.totalCount %>
+    </span>
+    <div style="display:flex;gap:6px;">
+      <% if (pagination.currentPage > 1) { %>
+        <a href="?status=<%= filter.status %>&from=<%= filter.from %>&to=<%= filter.to %>&page=<%= pagination.currentPage - 1 %>" class="btn btn-sm btn-secondary">← Anterior</a>
+      <% } %>
+      <% for (let p = Math.max(1, pagination.currentPage - 2); p <= Math.min(pagination.totalPages, pagination.currentPage + 2); p++) { %>
+        <a href="?status=<%= filter.status %>&from=<%= filter.from %>&to=<%= filter.to %>&page=<%= p %>"
+           class="btn btn-sm <%= p === pagination.currentPage ? 'btn-primary' : 'btn-secondary' %>"><%= p %></a>
+      <% } %>
+      <% if (pagination.currentPage < pagination.totalPages) { %>
+        <a href="?status=<%= filter.status %>&from=<%= filter.from %>&to=<%= filter.to %>&page=<%= pagination.currentPage + 1 %>" class="btn btn-sm btn-secondary">Siguiente →</a>
+      <% } %>
+    </div>
+  </div>
+  <% } %>
 </div>
 
 <%- include('../partials/footer') %>

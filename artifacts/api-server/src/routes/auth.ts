@@ -5,7 +5,7 @@ import { pool } from "../db";
 const router = Router();
 
 router.get("/login", (req, res) => {
-  if ((req.session as any).userId) return res.redirect("/orders");
+  if (req.session.userId) return res.redirect("/orders");
   res.render("login", { error: null });
 });
 
@@ -24,8 +24,8 @@ router.post("/auth/login", async (req, res) => {
     if (!match) {
       return res.render("login", { error: "Credenciales incorrectas." });
     }
-    (req.session as any).userId = user.id;
-    (req.session as any).nombre = user.nombre;
+    req.session.userId = user.id;
+    req.session.nombre = user.nombre;
     res.redirect("/orders");
   } catch (err) {
     console.error(err);

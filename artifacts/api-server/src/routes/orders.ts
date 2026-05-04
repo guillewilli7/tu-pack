@@ -2,37 +2,55 @@ import { Router } from "express";
 import { pool } from "../db";
 
 const router = Router();
+const PAGE_SIZE = 25;
 
 router.get("/", async (req, res) => {
-  const { status, from, to } = req.query as Record<string, string>;
+  const { status, from, to, page } = req.query as Record<string, string>;
+  const currentPage = Math.max(1, parseInt(page || "1", 10));
+  const offset = (currentPage - 1) * PAGE_SIZE;
+
   try {
-    let query = `
+    let baseWhere = "WHERE 1=1";
+    const params: unknown[] = [];
+    let idx = 1;
+
+    if (status && status !== "all") {
+      baseWhere += ` AND o.status = $${idx++}`;
+      params.push(status);
+    }
+    if (from) {
+      baseWhere += ` AND o.created_at >= $${idx++}`;
+      params.push(from);
+    }
+    if (to) {
+      baseWhere += ` AND o.created_at <= $${idx++}`;
+      params.push(to + "T23:59:59");
+    }
+
+    const countQuery = `SELECT COUNT(*) FROM orders o ${baseWhere}`;
+    const dataQuery = `
       SELECT o.id, o.negocio, o.status, o.total, o.created_at, o.client_id,
              c.negocio AS client_negocio
       FROM orders o
       LEFT JOIN clients c ON c.id = o.client_id
-      WHERE 1=1
+      ${baseWhere}
+      ORDER BY o.created_at DESC
+      LIMIT $${idx} OFFSET $${idx + 1}
     `;
-    const params: unknown[] = [];
-    let idx = 1;
-    if (status && status !== "all") {
-      query += ` AND o.status = $${idx++}`;
-      params.push(status);
-    }
-    if (from) {
-      query += ` AND o.created_at >= $${idx++}`;
-      params.push(from);
-    }
-    if (to) {
-      query += ` AND o.created_at <= $${idx++}`;
-      params.push(to + "T23:59:59");
-    }
-    query += " ORDER BY o.created_at DESC";
-    const { rows } = await pool.query(query, params);
+
+    const [countRes, dataRes] = await Promise.all([
+      pool.query(countQuery, params),
+      pool.query(dataQuery, [...params, PAGE_SIZE, offset]),
+    ]);
+
+    const totalCount = parseInt(countRes.rows[0].count, 10);
+    const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+
     res.render("orders/index", {
-      orders: rows,
+      orders: dataRes.rows,
       filter: { status: status || "all", from: from || "", to: to || "" },
-      nombre: (req.session as any).nombre,
+      nombre: req.session.nombre,
+      pagination: { currentPage, totalPages, totalCount, pageSize: PAGE_SIZE },
       error: null,
     });
   } catch (err) {
@@ -40,7 +58,8 @@ router.get("/", async (req, res) => {
     res.render("orders/index", {
       orders: [],
       filter: { status: "all", from: "", to: "" },
-      nombre: (req.session as any).nombre,
+      nombre: req.session.nombre,
+      pagination: { currentPage: 1, totalPages: 1, totalCount: 0, pageSize: PAGE_SIZE },
       error: "Error al cargar órdenes.",
     });
   }
@@ -57,7 +76,7 @@ router.get("/:id", async (req, res) => {
     if (!rows.length) return res.redirect("/orders");
     res.render("orders/detail", {
       order: rows[0],
-      nombre: (req.session as any).nombre,
+      nombre: req.session.nombre,
       success: req.query.success || null,
       error: null,
     });
@@ -89,7 +108,7 @@ router.post("/:id", async (req, res) => {
     );
     res.render("orders/detail", {
       order: rows[0] || {},
-      nombre: (req.session as any).nombre,
+      nombre: req.session.nombre,
       success: null,
       error: "Error al guardar cambios.",
     });
