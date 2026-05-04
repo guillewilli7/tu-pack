@@ -40,6 +40,21 @@ router.get("/clients", async (req, res) => {
   }
 });
 
+router.get("/clients/:id/phones", async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT phone, label FROM client_phones
+       WHERE client_id = $1 AND activo = true
+       ORDER BY id`,
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error al cargar teléfonos del cliente." });
+  }
+});
+
 router.get("/clients/:id/products", async (req, res) => {
   try {
     const { rows } = await pool.query(

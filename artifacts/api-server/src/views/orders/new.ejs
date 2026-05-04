@@ -31,9 +31,23 @@
   </div>
 </div>
 
+<div id="phone-card" class="card section" style="display:none;">
+  <div class="card-header"><span class="card-title">3. Teléfono</span></div>
+  <div class="card-body" style="max-width:420px;">
+    <div id="phone-select-wrap" style="display:none;">
+      <label class="form-label">Teléfono del cliente</label>
+      <select id="phone-select" class="form-control"></select>
+    </div>
+    <div id="phone-text-wrap" style="display:none;">
+      <label class="form-label">Teléfono (ingresá manualmente)</label>
+      <input type="text" id="phone-text" class="form-control" placeholder="Ej: 099 123 456" />
+    </div>
+  </div>
+</div>
+
 <div id="lines-card" class="card section" style="display:none;">
   <div class="card-header">
-    <span class="card-title">3. Líneas del pedido</span>
+    <span class="card-title">4. Líneas del pedido</span>
     <button type="button" class="btn btn-secondary btn-sm" id="add-line-btn">+ Agregar línea</button>
   </div>
   <div class="table-wrap">
@@ -53,7 +67,7 @@
 </div>
 
 <div id="totals-card" class="card section" style="display:none;">
-  <div class="card-header"><span class="card-title">4. Total y confirmación</span></div>
+  <div class="card-header"><span class="card-title">5. Total y confirmación</span></div>
   <div class="card-body">
     <div style="display:flex;gap:40px;align-items:flex-start;flex-wrap:wrap;">
       <div>
@@ -127,6 +141,7 @@
     hideDropdown();
     resetLines();
     showClientInfo(c);
+    loadClientPhones(c.id);
     loadClientProducts(c.id);
   }
 
@@ -142,8 +157,50 @@
     document.getElementById('ci-direccion').textContent = c.direccion_entrega || '—';
     document.getElementById('ci-horario').textContent = c.horario_entrega || '—';
     document.getElementById('client-info-card').style.display = '';
+    document.getElementById('phone-card').style.display = '';
     document.getElementById('lines-card').style.display = '';
     document.getElementById('totals-card').style.display = '';
+  }
+
+  // ── Phones ────────────────────────────────────────────────────
+  function loadClientPhones(id) {
+    fetch('/api/clients/' + id + '/phones')
+      .then(function (r) { return r.json(); })
+      .then(function (data) { renderPhoneSection(data); })
+      .catch(function () { renderPhoneSection([]); });
+  }
+
+  function renderPhoneSection(phones) {
+    var selectWrap = document.getElementById('phone-select-wrap');
+    var textWrap   = document.getElementById('phone-text-wrap');
+    var sel        = document.getElementById('phone-select');
+    var txt        = document.getElementById('phone-text');
+
+    if (phones && phones.length > 0) {
+      sel.innerHTML = '';
+      phones.forEach(function (p) {
+        var opt = document.createElement('option');
+        opt.value = p.phone;
+        opt.textContent = p.phone + (p.label ? '  (' + p.label + ')' : '');
+        sel.appendChild(opt);
+      });
+      selectWrap.style.display = '';
+      textWrap.style.display   = 'none';
+      txt.value = '';
+    } else {
+      selectWrap.style.display = 'none';
+      textWrap.style.display   = '';
+      sel.innerHTML = '';
+      txt.value = '';
+    }
+  }
+
+  function getSelectedPhone() {
+    var selectWrap = document.getElementById('phone-select-wrap');
+    if (selectWrap.style.display !== 'none') {
+      return document.getElementById('phone-select').value || '';
+    }
+    return document.getElementById('phone-text').value.trim();
   }
 
   // ── Products for client ───────────────────────────────────────
@@ -189,7 +246,6 @@
 
   function refreshAllProductDropdowns() {
     linesBody.querySelectorAll('.product-select').forEach(function (sel) {
-      var idx = parseInt(sel.dataset.idx);
       var current = sel.value;
       sel.innerHTML = '<option value="">— Seleccionar producto —</option>';
       clientProducts.forEach(function (p) {
@@ -258,8 +314,7 @@
 
   // ── Submit ────────────────────────────────────────────────────
   document.getElementById('confirm-btn').addEventListener('click', function () {
-    var errorDiv = document.getElementById('form-error');
-    errorDiv.style.display = 'none';
+    document.getElementById('form-error').style.display = 'none';
 
     if (!clientId) {
       showError('Seleccioná un cliente antes de confirmar.');
@@ -277,7 +332,7 @@
     var payload = {
       client_id: clientId,
       negocio: document.getElementById('ci-negocio').textContent,
-      phone: null,
+      phone: getSelectedPhone(),
       status: 'pendiente',
       items: validLines.map(function (l) {
         return {
