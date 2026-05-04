@@ -45,13 +45,13 @@
           <tr><td colspan="6" class="table-empty">No se encontraron productos.</td></tr>
         <% } %>
         <% products.forEach(function(p) { %>
-          <tr>
+          <tr style="cursor:pointer;" onclick="openEdit(<%= JSON.stringify(p) %>)">
             <td class="text-muted"><%= p.codigo_prod || '—' %></td>
             <td><strong><%= p.nombre %></strong></td>
             <td><%= p.unidad || '—' %></td>
             <td>$<%= Number(p.costo || 0).toFixed(2) %></td>
             <td><span class="badge <%= p.activo ? 'badge-green' : 'badge-red' %>"><%= p.activo ? 'Activo' : 'Inactivo' %></span></td>
-            <td>
+            <td onclick="event.stopPropagation()">
               <button class="btn btn-sm btn-secondary" onclick="openEdit(<%= JSON.stringify(p) %>)">Editar</button>
             </td>
           </tr>

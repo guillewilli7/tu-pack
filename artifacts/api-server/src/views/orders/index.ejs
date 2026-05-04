@@ -63,7 +63,7 @@
           <tr><td colspan="6" class="table-empty">No se encontraron órdenes.</td></tr>
         <% } %>
         <% orders.forEach(function(o) { %>
-          <tr>
+          <tr style="cursor:pointer;" onclick="window.location='/orders/<%= o.id %>'">
             <td class="text-muted"><%= o.id %></td>
             <td><%= new Date(o.created_at).toLocaleDateString('es-UY', {day:'2-digit',month:'2-digit',year:'numeric'}) %></td>
             <td><strong><%= o.negocio || o.client_negocio || '—' %></strong></td>
@@ -79,7 +79,7 @@
               <% } %>
             </td>
             <td>$<%= o.total ? Number(o.total).toFixed(2) : '0.00' %></td>
-            <td><a href="/orders/<%= o.id %>" class="btn btn-sm btn-secondary">Ver</a></td>
+            <td onclick="event.stopPropagation()"><a href="/orders/<%= o.id %>" class="btn btn-sm btn-secondary">Ver</a></td>
           </tr>
         <% }) %>
       </tbody>
