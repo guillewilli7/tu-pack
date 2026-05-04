@@ -358,52 +358,67 @@
       return;
     }
 
-    var warnings = [];
-
+    var phonePromises = [];
     var phoneRows = document.querySelectorAll('#phones-tbody tr[id^="ph-"]');
-    for (var i = 0; i < phoneRows.length; i++) {
-      var phone = phoneRows[i].querySelector('[data-role="phone"]').value.trim();
-      var label = phoneRows[i].querySelector('[data-role="label"]').value.trim();
-      if (!phone) continue;
-      try {
-        var r = await fetch('/api/clients/' + clientId + '/phones', {
+    phoneRows.forEach(function(row) {
+      var phone = row.querySelector('[data-role="phone"]').value.trim();
+      var label = row.querySelector('[data-role="label"]').value.trim();
+      if (!phone) return;
+      phonePromises.push(
+        fetch('/api/clients/' + clientId + '/phones', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ phone: phone, label: label }),
-        });
-        if (!r.ok) {
-          var d = await r.json();
-          warnings.push('Teléfono "' + phone + '": ' + (d.error || 'error desconocido'));
-        }
-      } catch (e) {
-        warnings.push('Teléfono "' + phone + '": error de red');
-      }
-    }
+        })
+        .then(function(r) {
+          return r.json().then(function(d) { return { ok: r.ok, label: 'Teléfono "' + phone + '"', error: d.error }; });
+        })
+        .catch(function() { return { ok: false, label: 'Teléfono "' + phone + '"', error: 'error de red' }; })
+      );
+    });
 
+    var productPromises = [];
     var productRows = document.querySelectorAll('#products-tbody tr[id^="pr-"]');
-    for (var j = 0; j < productRows.length; j++) {
-      var product_id = productRows[j].querySelector('[data-role="product_id"]').value;
-      var precio = productRows[j].querySelector('[data-role="precio_cliente"]').value;
-      if (!product_id) continue;
-      try {
-        var r2 = await fetch('/api/clients/' + clientId + '/products', {
+    productRows.forEach(function(row) {
+      var product_id = row.querySelector('[data-role="product_id"]').value;
+      var precio = row.querySelector('[data-role="precio_cliente"]').value;
+      if (!product_id) return;
+      productPromises.push(
+        fetch('/api/clients/' + clientId + '/products', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ product_id: product_id, precio_cliente: precio }),
-        });
-        if (!r2.ok) {
-          var d2 = await r2.json();
-          warnings.push('Producto id ' + product_id + ': ' + (d2.error || 'error desconocido'));
-        }
-      } catch (e) {
-        warnings.push('Producto id ' + product_id + ': error de red');
+        })
+        .then(function(r) {
+          return r.json().then(function(d) { return { ok: r.ok, label: 'Producto (id ' + product_id + ')', error: d.error }; });
+        })
+        .catch(function() { return { ok: false, label: 'Producto (id ' + product_id + ')', error: 'error de red' }; })
+      );
+    });
+
+    var allResults = await Promise.allSettled(phonePromises.concat(productPromises));
+
+    var warnings = [];
+    allResults.forEach(function(settled) {
+      if (settled.status === 'fulfilled' && !settled.value.ok) {
+        warnings.push(settled.value.label + ': ' + (settled.value.error || 'error desconocido'));
+      } else if (settled.status === 'rejected') {
+        warnings.push('Error inesperado al guardar un elemento.');
       }
-    }
+    });
 
     setLoading(false);
 
     if (warnings.length) {
-      window.location.href = '/clients/' + clientId + '?error=1';
+      showWarning(
+        'El cliente fue creado, pero algunos datos no se pudieron guardar:\n• ' +
+        warnings.join('\n• ') +
+        '\n\nPodés completarlos desde la página del cliente.'
+      );
+      document.getElementById('page-warning').style.whiteSpace = 'pre-line';
+      setTimeout(function() {
+        window.location.href = '/clients/' + clientId + '?error=1';
+      }, 4000);
     } else {
       window.location.href = '/clients/' + clientId + '?success=1';
     }
