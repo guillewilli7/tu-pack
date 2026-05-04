@@ -32,6 +32,7 @@ router.get("/", async (req, res) => {
 });
 
 router.get("/:id", async (req, res) => {
+  const { success, error: qErr } = req.query as Record<string, string>;
   try {
     const [clientRes, productsRes, allProductsRes, phonesRes] = await Promise.all([
       pool.query("SELECT * FROM clients WHERE id = $1", [req.params.id]),
@@ -54,8 +55,8 @@ router.get("/:id", async (req, res) => {
       allProducts: allProductsRes.rows,
       phones: phonesRes.rows,
       nombre: req.session.nombre,
-      success: req.query.success || null,
-      error: null,
+      success: success ? "Cambios guardados correctamente." : null,
+      error: qErr ? "Error al guardar los cambios. Intente nuevamente." : null,
     });
   } catch (err) {
     console.error(err);
@@ -71,12 +72,7 @@ router.post("/:id/update", async (req, res) => {
       `UPDATE clients SET negocio=$1, sucursal=$2, razon_social=$3, rut=$4,
        direccion_facturacion=$5, direccion_entrega=$6, horario_entrega=$7,
        activo=$8, updated_at=NOW() WHERE id=$9`,
-      [
-        negocio, sucursal, razon_social, rut,
-        direccion_facturacion, direccion_entrega, horario_entrega,
-        activo === "true",
-        req.params.id,
-      ]
+      [negocio, sucursal, razon_social, rut, direccion_facturacion, direccion_entrega, horario_entrega, activo === "true", req.params.id]
     );
     res.redirect(`/clients/${req.params.id}?success=1`);
   } catch (err) {

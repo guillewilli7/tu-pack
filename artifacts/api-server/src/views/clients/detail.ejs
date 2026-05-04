@@ -141,10 +141,8 @@
   </div>
 </div>
 
-<!-- Product data for searchable dropdown -->
 <script id="products-data" type="application/json">
-<% const safeProducts = allProducts.map(function(p) { return { id: p.id, nombre: p.nombre, codigo_prod: p.codigo_prod }; }); %>
-<%- JSON.stringify(safeProducts) %>
+<% const safeProducts = allProducts.map(function(p) { return { id: p.id, nombre: p.nombre, codigo_prod: p.codigo_prod }; }); %><%- JSON.stringify(safeProducts) %>
 </script>
 
 <!-- Add Product Modal -->
@@ -195,10 +193,8 @@
 </div>
 
 <script>
-  // Parse product list from the safe JSON script tag — no inline data injection
   var allProducts = JSON.parse(document.getElementById('products-data').textContent);
 
-  // Close modal on backdrop click
   document.querySelectorAll('.modal-backdrop').forEach(function(bd) {
     bd.addEventListener('click', function(e) {
       if (e.target === bd) bd.classList.remove('open');
@@ -223,7 +219,6 @@
     var lbl = nombre + ' (' + codigo + ')';
     document.getElementById('product-search-input').value = lbl;
     var labelEl = document.getElementById('selected-product-label');
-    // Use textContent — never innerHTML — to avoid XSS
     labelEl.textContent = 'Seleccionado: ' + lbl;
     labelEl.style.display = 'block';
     document.getElementById('product-list').style.display = 'none';
@@ -234,7 +229,6 @@
 
   searchInput.addEventListener('input', function() {
     var q = this.value.toLowerCase().trim();
-    // Clear previous results using DOM (never innerHTML with user data)
     while (productList.firstChild) productList.removeChild(productList.firstChild);
     if (!q) { productList.style.display = 'none'; return; }
 
@@ -255,7 +249,6 @@
         item.addEventListener('mouseover', function() { this.style.background = '#f7fafc'; });
         item.addEventListener('mouseout', function() { this.style.background = ''; });
         item.addEventListener('click', function() { selectProduct(p.id, p.nombre, p.codigo_prod); });
-        // Build label safely with DOM text nodes
         var strong = document.createElement('strong');
         strong.textContent = p.nombre;
         var code = document.createElement('span');
@@ -269,7 +262,6 @@
     productList.style.display = 'block';
   });
 
-  // Hide dropdown when clicking outside
   document.addEventListener('click', function(e) {
     if (!document.getElementById('product-dropdown').contains(e.target) && e.target !== searchInput) {
       productList.style.display = 'none';

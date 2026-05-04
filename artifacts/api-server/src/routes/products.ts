@@ -4,7 +4,7 @@ import { pool } from "../db";
 const router = Router();
 
 router.get("/", async (req, res) => {
-  const { search } = req.query as Record<string, string>;
+  const { search, success, error: qErr } = req.query as Record<string, string>;
   try {
     let query = `SELECT id, codigo_prod, nombre, descripcion, unidad, costo, activo FROM products WHERE 1=1`;
     const params: unknown[] = [];
@@ -18,8 +18,8 @@ router.get("/", async (req, res) => {
       products: rows,
       search: search || "",
       nombre: req.session.nombre,
-      success: req.query.success || null,
-      error: null,
+      success: success ? "Producto guardado correctamente." : null,
+      error: qErr ? "Error al guardar el producto. Verifique los datos e intente nuevamente." : null,
     });
   } catch (err) {
     console.error(err);
