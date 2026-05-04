@@ -1,0 +1,70 @@
+Build a web admin panel for TuPack, a packaging and supplies business in Uruguay. Use Node.js + Express backend with React or vanilla HTML/CSS/JS frontend — whichever is cleaner for this scope.
+
+---
+
+CRITICAL: Database
+Use ONLY the PostgreSQL connection string provided via environment variable postgres://postgres:47a371f817baa2b15c47@panel.ninetysix.cloud:25432/tupack?sslmode=disable. Do NOT create a local SQLite or any other database. Do NOT run any migrations or CREATE TABLE statements. The schema already exists. Every query must go against this external Postgres connection.
+
+---
+
+Existing schema (read-only reference, do not recreate):
+
+clients (id, codigo_cliente, negocio, sucursal, razon_social, rut, direccion_facturacion, direccion_entrega, horario_entrega, phone, activo, created_at, updated_at)
+client_phones (id, client_id, phone, label, activo, created_at)
+products (id, codigo_prod, nombre, descripcion, unidad, costo, activo, created_at)
+client_products (id, client_id, product_id, precio_cliente, activo, created_at, updated_at)
+orders (id, phone, client_id, negocio, status, items jsonb, total, raw_data jsonb, created_at, updated_at)
+sessions (phone, state, data jsonb, updated_at)
+users (id, email, password, nombre, activo, created_at)
+
+---
+
+Authentication
+- Login screen at /login with email and password fields
+- Passwords are stored as bcrypt hashes in the users table
+- Use express-session for session management
+- All views require authentication — redirect to /login if no active session
+- POST /auth/login validates credentials with bcrypt and redirects to /orders on success
+- GET /auth/logout destroys the session and redirects to /login
+
+---
+
+Views:
+
+1. Orders (/orders)
+- Table listing all orders: date, negocio, status, total, actions
+- Filter by status (pendiente, confirmado, cancelado) and date range
+- Click into order detail: shows all fields, renders the items JSONB as a readable line-item list
+- Can edit status and total
+- Can cancel an order (sets status to cancelado)
+
+2. Clients (/clients)
+- Table listing all clients: codigo_cliente, negocio, activo
+- Click into client detail which shows:
+  - Editable fields: negocio, sucursal, razon_social, rut, direccion_facturacion, direccion_entrega, horario_entrega, activo
+  - Products section: table with product name, costo (from products table), precio_cliente (from client_products), and % sobre venta calculated as precio_cliente / costo shown as a ratio (e.g. 1.47x). Allow inline editing of precio_cliente. Allow adding products from the catalog via a searchable dropdown.
+  - Phones section: list of phones from client_phones with their label. Allow adding new phones and deactivating existing ones.
+
+3. Products (/products)
+- Table listing all products: codigo_prod, nombre, costo, activo
+- Inline or modal edit for nombre, costo, descripcion, unidad, activo
+- Button to add a new product
+- Search/filter by name
+
+---
+
+Setup script
+Create scripts/create-admin.js that takes email, nombre and password as command line arguments, hashes the password with bcrypt, and inserts the user into the users table using DATABASE_URL. Usage: node scripts/create-admin.js email nombre password.
+
+Run this script immediately as part of setup with:
+- email: admintupack@mail.com
+- nombre: Admin
+- password: tupack@2026
+
+---
+
+General requirements:
+- Clean, functional UI with a sidebar showing the three nav sections
+- All data comes from and saves to the external Postgres via DATABASE_URL — no mocks, no seeds, no fake data
+- Clear error messages if a database operation fails
+- App starts with npm start and listens on process.env.PORT || 3000
