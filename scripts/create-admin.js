@@ -22,7 +22,7 @@ if (!connectionString) {
 }
 
 const { Pool } = pg;
-const pool = new Pool({ connectionString, ssl: false });
+const pool = new Pool({ connectionString });
 
 async function main() {
   const hash = await bcrypt.hash(password, 10);

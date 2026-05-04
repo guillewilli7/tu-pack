@@ -9,7 +9,4 @@ if (!connectionString) {
   throw new Error("TUPACK_DATABASE_URL or DATABASE_URL must be set.");
 }
 
-export const pool = new Pool({
-  connectionString,
-  ssl: false,
-});
+export const pool = new Pool({ connectionString });

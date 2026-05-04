@@ -141,20 +141,13 @@
   </div>
 </div>
 
-<!-- Embed product data as a hidden JSON script tag with safe escaping -->
+<!-- Product data for searchable dropdown -->
 <script id="products-data" type="application/json">
-<%
-  // Safely embed only the fields we need; EJS <%- %> is safe here because
-  // JSON.stringify produces valid JSON with no unescaped HTML that can break
-  // the script context — the type="application/json" tag is not executable.
-  const safeProducts = allProducts.map(function(p) {
-    return { id: p.id, nombre: p.nombre, codigo_prod: p.codigo_prod };
-  });
-%>
+<% const safeProducts = allProducts.map(function(p) { return { id: p.id, nombre: p.nombre, codigo_prod: p.codigo_prod }; }); %>
 <%- JSON.stringify(safeProducts) %>
 </script>
 
-<!-- Add Product Modal with searchable dropdown (XSS-safe: DOM APIs only, no innerHTML) -->
+<!-- Add Product Modal -->
 <div class="modal-backdrop" id="add-product-modal">
   <div class="modal">
     <h3>Agregar producto</h3>
