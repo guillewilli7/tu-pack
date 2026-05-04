@@ -77,6 +77,10 @@ router.get("/", async (req, res) => {
   }
 });
 
+router.get("/new", (req, res) => {
+  res.render("orders/new", { nombre: req.session.nombre });
+});
+
 router.get("/:id", async (req, res) => {
   try {
     const { rows } = await pool.query(

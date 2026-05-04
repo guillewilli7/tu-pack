@@ -1,0 +1,323 @@
+<%- include('../partials/header', { title: 'Nueva Orden', page: 'orders', nombre }) %>
+
+<div style="margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;">
+  <a href="/orders" class="btn btn-secondary btn-sm">← Volver</a>
+  <h2 style="margin:0;font-size:18px;font-weight:600;">Nueva Orden</h2>
+</div>
+
+<div id="form-error" class="alert alert-error" style="display:none;"></div>
+
+<div class="card section">
+  <div class="card-header"><span class="card-title">1. Cliente</span></div>
+  <div class="card-body">
+    <div class="form-group" style="position:relative;max-width:420px;">
+      <label class="form-label">Buscar negocio</label>
+      <input type="text" id="client-search" class="form-control" placeholder="Escribí el nombre del negocio…" autocomplete="off" />
+      <div id="client-dropdown" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:200;background:#fff;border:1px solid #e2e8f0;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,0.12);max-height:280px;overflow-y:auto;"></div>
+    </div>
+    <input type="hidden" id="client-id" />
+  </div>
+</div>
+
+<div id="client-info-card" class="card section" style="display:none;">
+  <div class="card-header"><span class="card-title">2. Datos del cliente</span></div>
+  <div class="card-body">
+    <table style="font-size:14px;border-collapse:collapse;width:100%;max-width:560px;">
+      <tr><td style="padding:5px 0;color:#718096;width:160px;">Negocio</td><td id="ci-negocio" style="font-weight:600;"></td></tr>
+      <tr><td style="padding:5px 0;color:#718096;">Sucursal</td><td id="ci-sucursal"></td></tr>
+      <tr><td style="padding:5px 0;color:#718096;">Dirección entrega</td><td id="ci-direccion"></td></tr>
+      <tr><td style="padding:5px 0;color:#718096;">Horario entrega</td><td id="ci-horario"></td></tr>
+    </table>
+  </div>
+</div>
+
+<div id="lines-card" class="card section" style="display:none;">
+  <div class="card-header">
+    <span class="card-title">3. Líneas del pedido</span>
+    <button type="button" class="btn btn-secondary btn-sm" id="add-line-btn">+ Agregar línea</button>
+  </div>
+  <div class="table-wrap">
+    <table id="lines-table">
+      <thead>
+        <tr>
+          <th style="min-width:220px;">Producto</th>
+          <th style="width:100px;">Cantidad</th>
+          <th style="width:130px;">Precio unit.</th>
+          <th style="width:110px;">Subtotal</th>
+          <th style="width:50px;"></th>
+        </tr>
+      </thead>
+      <tbody id="lines-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="totals-card" class="card section" style="display:none;">
+  <div class="card-header"><span class="card-title">4. Total y confirmación</span></div>
+  <div class="card-body">
+    <div style="display:flex;gap:40px;align-items:flex-start;flex-wrap:wrap;">
+      <div>
+        <div class="form-label" style="margin-bottom:4px;">Total general</div>
+        <div id="grand-total" style="font-size:28px;font-weight:700;color:#2d3748;">$0.00</div>
+      </div>
+      <div style="flex:1;min-width:220px;">
+        <label class="form-label" for="notas">Notas (opcional)</label>
+        <textarea id="notas" class="form-control" rows="3" placeholder="Notas adicionales…" style="resize:vertical;"></textarea>
+      </div>
+    </div>
+    <div style="margin-top:20px;">
+      <button type="button" id="confirm-btn" class="btn btn-primary" style="min-width:160px;">Confirmar orden</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var clientId = null;
+  var clientProducts = [];
+  var lines = [];
+
+  // ── Autocomplete ──────────────────────────────────────────────
+  var searchInput = document.getElementById('client-search');
+  var dropdown = document.getElementById('client-dropdown');
+  var debounceTimer = null;
+
+  searchInput.addEventListener('input', function () {
+    clearTimeout(debounceTimer);
+    var q = searchInput.value.trim();
+    if (!q) { hideDropdown(); return; }
+    debounceTimer = setTimeout(function () { searchClients(q); }, 250);
+  });
+
+  searchInput.addEventListener('blur', function () {
+    setTimeout(hideDropdown, 200);
+  });
+
+  function searchClients(q) {
+    fetch('/api/clients?search=' + encodeURIComponent(q))
+      .then(function (r) { return r.json(); })
+      .then(function (data) { renderDropdown(data); })
+      .catch(function () { hideDropdown(); });
+  }
+
+  function renderDropdown(clients) {
+    dropdown.innerHTML = '';
+    clients.forEach(function (c) {
+      var item = document.createElement('div');
+      item.style.cssText = 'padding:10px 14px;cursor:pointer;font-size:14px;border-bottom:1px solid #f0f4f8;';
+      item.innerHTML = '<strong>' + esc(c.negocio) + '</strong>' +
+        (c.sucursal ? ' <span style="color:#718096;font-size:12px;">— ' + esc(c.sucursal) + '</span>' : '');
+      item.addEventListener('mousedown', function () { selectClient(c); });
+      dropdown.appendChild(item);
+    });
+    var addBtn = document.createElement('div');
+    addBtn.style.cssText = 'padding:10px 14px;cursor:pointer;font-size:13px;color:#3b82f6;border-top:1px solid #e2e8f0;background:#f8fafc;';
+    addBtn.textContent = '+ Agregar nuevo cliente';
+    addBtn.addEventListener('mousedown', function () { window.open('/clients/new', '_blank'); });
+    dropdown.appendChild(addBtn);
+    dropdown.style.display = 'block';
+  }
+
+  function hideDropdown() { dropdown.style.display = 'none'; }
+
+  function selectClient(c) {
+    clientId = c.id;
+    searchInput.value = c.negocio + (c.sucursal ? ' — ' + c.sucursal : '');
+    document.getElementById('client-id').value = c.id;
+    hideDropdown();
+    showClientInfo(c);
+    loadClientProducts(c.id);
+  }
+
+  function showClientInfo(c) {
+    document.getElementById('ci-negocio').textContent = c.negocio || '—';
+    document.getElementById('ci-sucursal').textContent = c.sucursal || '—';
+    document.getElementById('ci-direccion').textContent = c.direccion_entrega || '—';
+    document.getElementById('ci-horario').textContent = c.horario_entrega || '—';
+    document.getElementById('client-info-card').style.display = '';
+    document.getElementById('lines-card').style.display = '';
+    document.getElementById('totals-card').style.display = '';
+  }
+
+  // ── Products for client ───────────────────────────────────────
+  function loadClientProducts(id) {
+    fetch('/api/clients/' + id + '/products')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        clientProducts = data;
+        if (lines.length === 0) addLine();
+        else refreshAllProductDropdowns();
+      })
+      .catch(function () { clientProducts = []; addLine(); });
+  }
+
+  // ── Lines ─────────────────────────────────────────────────────
+  var linesBody = document.getElementById('lines-body');
+
+  document.getElementById('add-line-btn').addEventListener('click', addLine);
+
+  function addLine() {
+    var idx = lines.length;
+    lines.push({ product_id: null, cantidad: 0, precio_unitario: 0 });
+    var tr = document.createElement('tr');
+    tr.dataset.idx = idx;
+    tr.innerHTML =
+      '<td>' + buildProductSelect(idx) + '</td>' +
+      '<td><input type="number" class="form-control qty-input" data-idx="' + idx + '" min="0" step="1" value="0" style="width:100%;text-align:right;" /></td>' +
+      '<td><input type="number" class="form-control price-input" data-idx="' + idx + '" min="0" step="0.01" value="0.00" style="width:100%;text-align:right;" /></td>' +
+      '<td class="subtotal-cell" data-idx="' + idx + '" style="text-align:right;padding-right:8px;font-weight:500;">$0.00</td>' +
+      '<td style="text-align:center;"><button type="button" class="btn btn-sm btn-danger remove-btn" data-idx="' + idx + '">✕</button></td>';
+    linesBody.appendChild(tr);
+    bindLine(tr, idx);
+  }
+
+  function buildProductSelect(idx) {
+    var opts = '<option value="">— Seleccionar producto —</option>';
+    clientProducts.forEach(function (p) {
+      opts += '<option value="' + p.product_id + '" data-precio="' + (p.precio_cliente || 0) + '" data-nombre="' + esc(p.nombre) + '" data-codigo="' + esc(p.codigo_prod || '') + '">' +
+        esc(p.nombre) + (p.codigo_prod ? ' (' + esc(p.codigo_prod) + ')' : '') + '</option>';
+    });
+    return '<select class="form-control product-select" data-idx="' + idx + '" style="width:100%;">' + opts + '</select>';
+  }
+
+  function refreshAllProductDropdowns() {
+    linesBody.querySelectorAll('.product-select').forEach(function (sel) {
+      var idx = parseInt(sel.dataset.idx);
+      var current = sel.value;
+      sel.innerHTML = '<option value="">— Seleccionar producto —</option>';
+      clientProducts.forEach(function (p) {
+        var opt = document.createElement('option');
+        opt.value = p.product_id;
+        opt.dataset.precio = p.precio_cliente || 0;
+        opt.dataset.nombre = p.nombre;
+        opt.dataset.codigo = p.codigo_prod || '';
+        opt.textContent = p.nombre + (p.codigo_prod ? ' (' + p.codigo_prod + ')' : '');
+        if (String(p.product_id) === String(current)) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    });
+  }
+
+  function bindLine(tr, idx) {
+    var sel = tr.querySelector('.product-select');
+    var qtyInput = tr.querySelector('.qty-input');
+    var priceInput = tr.querySelector('.price-input');
+    var removeBtn = tr.querySelector('.remove-btn');
+
+    sel.addEventListener('change', function () {
+      var opt = sel.options[sel.selectedIndex];
+      lines[idx].product_id = sel.value || null;
+      lines[idx].nombre_catalogo = opt ? opt.dataset.nombre : '';
+      lines[idx].codigo_prod = opt ? opt.dataset.codigo : '';
+      if (opt && opt.dataset.precio) {
+        priceInput.value = parseFloat(opt.dataset.precio).toFixed(2);
+        lines[idx].precio_unitario = parseFloat(opt.dataset.precio);
+      }
+      recalc(idx, tr);
+    });
+
+    qtyInput.addEventListener('input', function () {
+      lines[idx].cantidad = parseFloat(qtyInput.value) || 0;
+      recalc(idx, tr);
+    });
+
+    priceInput.addEventListener('input', function () {
+      lines[idx].precio_unitario = parseFloat(priceInput.value) || 0;
+      recalc(idx, tr);
+    });
+
+    removeBtn.addEventListener('click', function () {
+      lines[idx] = null;
+      tr.remove();
+      recalcTotal();
+    });
+  }
+
+  function recalc(idx, tr) {
+    var qty = lines[idx] ? lines[idx].cantidad : 0;
+    var price = lines[idx] ? lines[idx].precio_unitario : 0;
+    var sub = qty * price;
+    if (lines[idx]) lines[idx].subtotal = sub;
+    var cell = tr.querySelector('.subtotal-cell');
+    if (cell) cell.textContent = '$' + sub.toFixed(2);
+    recalcTotal();
+  }
+
+  function recalcTotal() {
+    var total = 0;
+    lines.forEach(function (l) { if (l) total += (l.subtotal || 0); });
+    document.getElementById('grand-total').textContent = '$' + total.toFixed(2);
+  }
+
+  // ── Submit ────────────────────────────────────────────────────
+  document.getElementById('confirm-btn').addEventListener('click', function () {
+    var errorDiv = document.getElementById('form-error');
+    errorDiv.style.display = 'none';
+
+    if (!clientId) {
+      showError('Seleccioná un cliente antes de confirmar.');
+      return;
+    }
+    var validLines = lines.filter(function (l) { return l && l.product_id && l.cantidad > 0; });
+    if (!validLines.length) {
+      showError('Agregá al menos una línea con producto y cantidad mayor a 0.');
+      return;
+    }
+
+    var total = 0;
+    validLines.forEach(function (l) { total += (l.subtotal || 0); });
+
+    var payload = {
+      client_id: clientId,
+      negocio: document.getElementById('ci-negocio').textContent,
+      phone: null,
+      status: 'pendiente',
+      items: validLines.map(function (l) {
+        return {
+          product_id: l.product_id,
+          codigo_prod: l.codigo_prod || '',
+          nombre_catalogo: l.nombre_catalogo || '',
+          cantidad: l.cantidad,
+          precio_unitario: l.precio_unitario,
+          subtotal: l.subtotal,
+        };
+      }),
+      total: total,
+      notas: document.getElementById('notas').value.trim() || null,
+    };
+
+    var btn = document.getElementById('confirm-btn');
+    btn.disabled = true;
+    btn.textContent = 'Guardando…';
+
+    fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.error) { showError(data.error); btn.disabled = false; btn.textContent = 'Confirmar orden'; return; }
+        window.location.href = '/orders/' + data.id + '?success=1';
+      })
+      .catch(function () {
+        showError('Error de red. Intentá de nuevo.');
+        btn.disabled = false;
+        btn.textContent = 'Confirmar orden';
+      });
+  });
+
+  function showError(msg) {
+    var el = document.getElementById('form-error');
+    el.textContent = msg;
+    el.style.display = '';
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+})();
+</script>
+
+<%- include('../partials/footer') %>

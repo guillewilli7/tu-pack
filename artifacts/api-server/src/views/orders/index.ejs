@@ -37,7 +37,7 @@
 </div>
 
 <div class="card">
-  <div class="card-header">
+  <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
     <span class="card-title">
       Órdenes (<%= pagination.totalCount %>)
       <% if (pagination.totalPages > 1) { %>
@@ -46,6 +46,7 @@
         </span>
       <% } %>
     </span>
+    <a href="/orders/new" class="btn btn-primary btn-sm">+ Nueva orden</a>
   </div>
   <div class="table-wrap">
     <table>
