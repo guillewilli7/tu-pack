@@ -5,37 +5,64 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TuPack Admin — Iniciar sesión</title>
   <style>
+    /* Mismos tokens "cuaderno de campo" que el panel (ver partials/header.ejs). */
+    :root {
+      --background: #faf8f5;
+      --foreground: #1a231f;
+      --card: #fdfdfc;
+      --muted-foreground: #5e6e66;
+      --primary: #1c4a35;
+      --primary-hover: #163a29;
+      --primary-foreground: #faf8f5;
+      --destructive: #ae3229;
+      --destructive-soft: #f8e9e7;
+      --border: #d5dbd1;
+      --radius: 8px;
+      --font-display: ui-serif, Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+      --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #f0f4f8; min-height: 100vh;
+      font-family: var(--font-body);
+      background: var(--background); color: var(--foreground); min-height: 100vh;
       display: flex; align-items: center; justify-content: center;
+      -webkit-font-smoothing: antialiased;
     }
     .login-wrapper { width: 100%; max-width: 400px; padding: 20px; }
-    .login-brand { text-align: center; margin-bottom: 32px; }
-    .login-brand h1 { font-size: 28px; font-weight: 800; color: #1a2332; letter-spacing: -0.5px; }
-    .login-brand p { font-size: 14px; color: #718096; margin-top: 4px; }
+    .login-brand { text-align: center; margin-bottom: 28px; }
+    .login-brand h1 {
+      font-family: var(--font-display); font-size: 26px; font-weight: 600;
+      color: var(--primary); letter-spacing: -0.4px;
+    }
+    .login-brand p { font-size: 14px; color: var(--muted-foreground); margin-top: 4px; }
     .login-card {
-      background: #fff; border-radius: 12px; border: 1px solid #e2e8f0;
-      padding: 32px; box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+      background: var(--card); border-radius: var(--radius); border: 1px solid var(--border);
+      padding: 28px; box-shadow: 0 1px 2px rgba(26, 35, 31, 0.04);
     }
-    .login-card h2 { font-size: 18px; font-weight: 600; color: #2d3748; margin-bottom: 24px; }
+    .login-card h2 {
+      font-family: var(--font-display); font-size: 19px; font-weight: 600;
+      color: var(--foreground); margin-bottom: 6px;
+    }
+    .login-card .login-hint { font-size: 14px; color: var(--muted-foreground); margin-bottom: 22px; }
     .form-group { margin-bottom: 18px; }
-    .form-label { display: block; font-size: 13px; font-weight: 500; color: #4a5568; margin-bottom: 6px; }
+    .form-label { display: block; font-size: 14px; font-weight: 500; color: var(--foreground); margin-bottom: 6px; }
     .form-control {
-      width: 100%; padding: 10px 14px; border: 1px solid #e2e8f0; border-radius: 8px;
-      font-size: 14px; color: #2d3748; background: #fff; transition: border-color 0.15s;
+      width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius);
+      font-family: var(--font-body); font-size: 14px; color: var(--foreground); background: var(--card);
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
-    .form-control:focus { outline: none; border-color: #4299e1; box-shadow: 0 0 0 3px rgba(66,153,225,0.15); }
+    .form-control::placeholder { color: var(--muted-foreground); }
+    .form-control:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(28, 74, 53, 0.12); }
     .btn-login {
-      width: 100%; padding: 11px; background: #4299e1; color: #fff; border: none;
-      border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer;
-      transition: background 0.15s; margin-top: 4px;
+      width: 100%; padding: 10px; background: var(--primary); color: var(--primary-foreground); border: none;
+      border-radius: var(--radius); font-family: var(--font-body); font-size: 15px; font-weight: 500;
+      cursor: pointer; transition: background 0.15s; margin-top: 4px;
     }
-    .btn-login:hover { background: #3182ce; }
+    .btn-login:hover { background: var(--primary-hover); }
     .alert-error {
-      background: #fff5f5; border: 1px solid #fed7d7; color: #c53030;
-      padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 20px;
+      background: var(--destructive-soft); border: 1px solid #eccbc7; color: var(--destructive);
+      padding: 10px 14px; border-radius: var(--radius); font-size: 14px; margin-bottom: 20px;
     }
   </style>
 </head>
@@ -47,6 +74,7 @@
     </div>
     <div class="login-card">
       <h2>Iniciar sesión</h2>
+      <p class="login-hint">Usá el correo y la contraseña de tu cuenta.</p>
       <% if (error) { %>
         <div class="alert-error"><%= error %></div>
       <% } %>

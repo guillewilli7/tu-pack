@@ -91,7 +91,7 @@
   </div>
 
   <% if (pagination.totalPages > 1) { %>
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-top:1px solid #e2e8f0;">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-top:1px solid #d5dbd1;">
     <span class="text-muted">
       <%= ((pagination.currentPage - 1) * pagination.pageSize) + 1 %>–<%= Math.min(pagination.currentPage * pagination.pageSize, pagination.totalCount) %> de <%= pagination.totalCount %>
     </span>

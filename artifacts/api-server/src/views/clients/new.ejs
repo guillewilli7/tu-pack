@@ -5,7 +5,7 @@
 </div>
 
 <div id="page-error" class="alert alert-error" style="display:none;"></div>
-<div id="page-warning" class="alert" style="display:none;background:#fffbeb;border:1px solid #f6e05e;color:#744210;"></div>
+<div id="page-warning" class="alert" style="display:none;background:#f6e7dc;border:1px solid #e6c9ae;color:#8a431f;"></div>
 
 <div class="card section">
   <div class="card-header"><span class="card-title">Datos del cliente</span></div>
@@ -16,7 +16,7 @@
         <input type="number" id="f-codigo" class="form-control" placeholder="Ej: 1042" />
       </div>
       <div class="form-group">
-        <label class="form-label">Negocio <span style="color:#e53e3e;">*</span></label>
+        <label class="form-label">Negocio <span style="color:#ae3229;">*</span></label>
         <input type="text" id="f-negocio" class="form-control" placeholder="Nombre del negocio" required />
       </div>
     </div>
@@ -39,7 +39,7 @@
         <label class="form-label">Estado</label>
         <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
           <input type="checkbox" id="f-activo" checked style="width:16px;height:16px;cursor:pointer;" />
-          <label for="f-activo" style="font-size:14px;color:#2d3748;cursor:pointer;">Activo</label>
+          <label for="f-activo" style="font-size:14px;color:#1a231f;cursor:pointer;">Activo</label>
         </div>
       </div>
     </div>
@@ -111,17 +111,17 @@
   .search-wrap { position: relative; }
   .search-dropdown {
     display: none; position: absolute; top: calc(100% + 2px); left: 0; right: 0;
-    background: #fff; border: 1px solid #e2e8f0; border-radius: 7px;
+    background: #fdfdfc; border: 1px solid #d5dbd1; border-radius: 8px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.10); max-height: 200px; overflow-y: auto; z-index: 200;
   }
   .search-dropdown.open { display: block; }
   .search-item {
-    padding: 9px 14px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f0f4f8;
+    padding: 9px 14px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #eeece8;
   }
   .search-item:last-child { border-bottom: none; }
-  .search-item:hover { background: #f7fafc; }
-  .row-delete { background: none; border: none; color: #fc8181; cursor: pointer; font-size: 18px; padding: 0 4px; line-height: 1; }
-  .row-delete:hover { color: #e53e3e; }
+  .search-item:hover { background: #eeece8; }
+  .row-delete { background: none; border: none; color: #ae3229; cursor: pointer; font-size: 18px; padding: 0 4px; line-height: 1; }
+  .row-delete:hover { color: #ae3229; }
 </style>
 
 <script>
@@ -205,7 +205,7 @@
     dropdown.className = 'search-dropdown';
 
     var selectedLabel = document.createElement('div');
-    selectedLabel.style.cssText = 'font-size:12px;color:#4299e1;margin-top:4px;';
+    selectedLabel.style.cssText = 'font-size:12px;color:#1c4a35;margin-top:4px;';
 
     var timer = null;
     searchInput.addEventListener('input', function() {
@@ -223,7 +223,7 @@
             if (!items.length) {
               var d = document.createElement('div');
               d.className = 'search-item';
-              d.style.color = '#a0aec0';
+              d.style.color = '#5e6e66';
               d.textContent = 'Sin resultados';
               dropdown.appendChild(d);
             } else {
@@ -233,7 +233,7 @@
                 var strong = document.createElement('strong');
                 strong.textContent = p.nombre;
                 var code = document.createElement('span');
-                code.style.color = '#a0aec0';
+                code.style.color = '#5e6e66';
                 code.textContent = ' (' + p.codigo_prod + ')';
                 d.appendChild(strong);
                 d.appendChild(code);

@@ -1,8 +1,8 @@
 <%- include('../partials/header', { title: 'Nueva Orden', page: 'orders', nombre }) %>
 
-<div style="margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;">
+<%# El título de la pantalla ya lo pone el header (.page-title). %>
+<div style="margin-bottom:20px;">
   <a href="/orders" class="btn btn-secondary btn-sm">← Volver</a>
-  <h2 style="margin:0;font-size:18px;font-weight:600;">Nueva Orden</h2>
 </div>
 
 <div id="form-error" class="alert alert-error" style="display:none;"></div>
@@ -13,7 +13,7 @@
     <div class="form-group" style="position:relative;max-width:420px;">
       <label class="form-label">Buscar negocio</label>
       <input type="text" id="client-search" class="form-control" placeholder="Escribí el nombre del negocio…" autocomplete="off" />
-      <div id="client-dropdown" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:200;background:#fff;border:1px solid #e2e8f0;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,0.12);max-height:280px;overflow-y:auto;"></div>
+      <div id="client-dropdown" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:200;background:#fdfdfc;border:1px solid #d5dbd1;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.12);max-height:280px;overflow-y:auto;"></div>
     </div>
     <input type="hidden" id="client-id" />
   </div>
@@ -23,10 +23,10 @@
   <div class="card-header"><span class="card-title">2. Datos del cliente</span></div>
   <div class="card-body">
     <table style="font-size:14px;border-collapse:collapse;width:100%;max-width:560px;">
-      <tr><td style="padding:5px 0;color:#718096;width:160px;">Negocio</td><td id="ci-negocio" style="font-weight:600;"></td></tr>
-      <tr><td style="padding:5px 0;color:#718096;">Sucursal</td><td id="ci-sucursal"></td></tr>
-      <tr><td style="padding:5px 0;color:#718096;">Dirección entrega</td><td id="ci-direccion"></td></tr>
-      <tr><td style="padding:5px 0;color:#718096;">Horario entrega</td><td id="ci-horario"></td></tr>
+      <tr><td style="padding:5px 0;color:#5e6e66;width:160px;">Negocio</td><td id="ci-negocio" style="font-weight:600;"></td></tr>
+      <tr><td style="padding:5px 0;color:#5e6e66;">Sucursal</td><td id="ci-sucursal"></td></tr>
+      <tr><td style="padding:5px 0;color:#5e6e66;">Dirección entrega</td><td id="ci-direccion"></td></tr>
+      <tr><td style="padding:5px 0;color:#5e6e66;">Horario entrega</td><td id="ci-horario"></td></tr>
     </table>
   </div>
 </div>
@@ -72,7 +72,7 @@
     <div style="display:flex;gap:40px;align-items:flex-start;flex-wrap:wrap;">
       <div>
         <div class="form-label" style="margin-bottom:4px;">Total general</div>
-        <div id="grand-total" style="font-size:28px;font-weight:700;color:#2d3748;">$0.00</div>
+        <div id="grand-total" style="font-size:28px;font-weight:700;color:#1a231f;">$0.00</div>
       </div>
       <div style="flex:1;min-width:220px;">
         <label class="form-label" for="notas">Notas (opcional)</label>
@@ -118,14 +118,14 @@
     dropdown.innerHTML = '';
     clients.forEach(function (c) {
       var item = document.createElement('div');
-      item.style.cssText = 'padding:10px 14px;cursor:pointer;font-size:14px;border-bottom:1px solid #f0f4f8;';
+      item.style.cssText = 'padding:10px 14px;cursor:pointer;font-size:14px;border-bottom:1px solid #eeece8;';
       item.innerHTML = '<strong>' + esc(c.negocio) + '</strong>' +
-        (c.sucursal ? ' <span style="color:#718096;font-size:12px;">— ' + esc(c.sucursal) + '</span>' : '');
+        (c.sucursal ? ' <span style="color:#5e6e66;font-size:12px;">— ' + esc(c.sucursal) + '</span>' : '');
       item.addEventListener('mousedown', function () { selectClient(c); });
       dropdown.appendChild(item);
     });
     var addBtn = document.createElement('div');
-    addBtn.style.cssText = 'padding:10px 14px;cursor:pointer;font-size:13px;color:#3b82f6;border-top:1px solid #e2e8f0;background:#f8fafc;';
+    addBtn.style.cssText = 'padding:10px 14px;cursor:pointer;font-size:13px;color:#1c4a35;border-top:1px solid #d5dbd1;background:#eeece8;';
     addBtn.textContent = '+ Agregar nuevo cliente';
     addBtn.addEventListener('mousedown', function () { window.open('/clients/new', '_blank'); });
     dropdown.appendChild(addBtn);

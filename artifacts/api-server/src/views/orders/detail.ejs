@@ -22,12 +22,12 @@
     <div class="card-header"><span class="card-title">Información</span></div>
     <div class="card-body">
       <table style="font-size:14px;width:100%;border-collapse:collapse;">
-        <tr><td style="padding:6px 0;color:#718096;width:140px;">ID</td><td><strong>#<%= order.id %></strong></td></tr>
-        <tr><td style="padding:6px 0;color:#718096;">Fecha</td><td><%= new Date(order.created_at).toLocaleString('es-UY') %></td></tr>
-        <tr><td style="padding:6px 0;color:#718096;">Negocio</td><td><%= order.negocio || order.client_negocio || '—' %></td></tr>
-        <tr><td style="padding:6px 0;color:#718096;">Teléfono</td><td><%= order.phone || '—' %></td></tr>
-        <tr><td style="padding:6px 0;color:#718096;">Cliente</td><td><% if (order.client_id) { %><a href="/clients/<%= order.client_id %>" class="btn-link"><%= order.client_negocio || order.codigo_cliente || order.client_id %></a><% } else { %>—<% } %></td></tr>
-        <tr><td style="padding:6px 0;color:#718096;">Estado</td>
+        <tr><td style="padding:6px 0;color:#5e6e66;width:140px;">ID</td><td><strong>#<%= order.id %></strong></td></tr>
+        <tr><td style="padding:6px 0;color:#5e6e66;">Fecha</td><td><%= new Date(order.created_at).toLocaleString('es-UY') %></td></tr>
+        <tr><td style="padding:6px 0;color:#5e6e66;">Negocio</td><td><%= order.negocio || order.client_negocio || '—' %></td></tr>
+        <tr><td style="padding:6px 0;color:#5e6e66;">Teléfono</td><td><%= order.phone || '—' %></td></tr>
+        <tr><td style="padding:6px 0;color:#5e6e66;">Cliente</td><td><% if (order.client_id) { %><a href="/clients/<%= order.client_id %>" class="btn-link"><%= order.client_negocio || order.codigo_cliente || order.client_id %></a><% } else { %>—<% } %></td></tr>
+        <tr><td style="padding:6px 0;color:#5e6e66;">Estado</td>
           <td>
             <% if (isPending) { %><span class="badge badge-yellow">Pendiente</span>
             <% } else if (isInProcess) { %><span class="badge badge-blue">En Proceso</span>
@@ -36,9 +36,9 @@
             <% } else { %><span class="badge badge-gray"><%= order.status %></span><% } %>
           </td>
         </tr>
-        <tr><td style="padding:6px 0;color:#718096;">Total</td><td><strong>$<%= Number(order.total || 0).toFixed(2) %></strong></td></tr>
+        <tr><td style="padding:6px 0;color:#5e6e66;">Total</td><td><strong>$<%= Number(order.total || 0).toFixed(2) %></strong></td></tr>
         <% if (order.raw_data && order.raw_data.notas) { %>
-        <tr><td style="padding:6px 0;color:#718096;vertical-align:top;">Notas</td><td style="white-space:pre-wrap;"><%= order.raw_data.notas %></td></tr>
+        <tr><td style="padding:6px 0;color:#5e6e66;vertical-align:top;">Notas</td><td style="white-space:pre-wrap;"><%= order.raw_data.notas %></td></tr>
         <% } %>
       </table>
     </div>
@@ -84,7 +84,7 @@
       </form>
       <% } %>
 
-      <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0;" />
+      <hr style="border:none;border-top:1px solid #d5dbd1;margin:16px 0;" />
 
       <form method="POST" action="/orders/<%= order.id %>">
         <div class="form-group">
@@ -144,7 +144,7 @@
     <button class="btn btn-sm btn-secondary" onclick="document.getElementById('raw-data').style.display=document.getElementById('raw-data').style.display==='none'?'block':'none'">Mostrar / Ocultar</button>
   </div>
   <div class="card-body" id="raw-data" style="display:none;">
-    <pre style="font-size:12px;background:#f7fafc;padding:16px;border-radius:6px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;"><%= JSON.stringify(order.raw_data, null, 2) %></pre>
+    <pre style="font-size:12px;background:#eeece8;padding:16px;border-radius:8px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;"><%= JSON.stringify(order.raw_data, null, 2) %></pre>
   </div>
 </div>
 <% } %>

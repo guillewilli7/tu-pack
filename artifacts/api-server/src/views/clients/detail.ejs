@@ -168,10 +168,10 @@
         <label class="form-label">Buscar producto</label>
         <input type="text" id="product-search-input" class="form-control" placeholder="Escribir nombre o código..." autocomplete="off" />
         <div id="product-dropdown" style="position:relative;">
-          <div id="product-list" style="display:none;position:absolute;top:2px;left:0;right:0;background:#fff;border:1px solid #e2e8f0;border-radius:7px;box-shadow:0 4px 16px rgba(0,0,0,0.1);max-height:200px;overflow-y:auto;z-index:200;"></div>
+          <div id="product-list" style="display:none;position:absolute;top:2px;left:0;right:0;background:#fdfdfc;border:1px solid #d5dbd1;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.1);max-height:200px;overflow-y:auto;z-index:200;"></div>
         </div>
         <input type="hidden" name="product_id" id="selected-product-id" required />
-        <div id="selected-product-label" style="margin-top:6px;font-size:13px;color:#4299e1;display:none;"></div>
+        <div id="selected-product-label" style="margin-top:6px;font-size:13px;color:#1c4a35;display:none;"></div>
       </div>
       <div class="form-group">
         <label class="form-label">Precio cliente ($)</label>
@@ -253,20 +253,20 @@
 
     if (!matches.length) {
       var empty = document.createElement('div');
-      empty.style.cssText = 'padding:10px 14px;color:#a0aec0;font-size:13px;';
+      empty.style.cssText = 'padding:10px 14px;color:#5e6e66;font-size:13px;';
       empty.textContent = 'Sin resultados';
       productList.appendChild(empty);
     } else {
       matches.forEach(function(p) {
         var item = document.createElement('div');
-        item.style.cssText = 'padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid #f0f4f8;';
-        item.addEventListener('mouseover', function() { this.style.background = '#f7fafc'; });
+        item.style.cssText = 'padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid #eeece8;';
+        item.addEventListener('mouseover', function() { this.style.background = '#eeece8'; });
         item.addEventListener('mouseout', function() { this.style.background = ''; });
         item.addEventListener('click', function() { selectProduct(p.id, p.nombre, p.codigo_prod); });
         var strong = document.createElement('strong');
         strong.textContent = p.nombre;
         var code = document.createElement('span');
-        code.style.color = '#a0aec0';
+        code.style.color = '#5e6e66';
         code.textContent = ' (' + p.codigo_prod + ')';
         item.appendChild(strong);
         item.appendChild(code);
