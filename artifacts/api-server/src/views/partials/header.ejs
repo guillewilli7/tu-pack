@@ -153,6 +153,7 @@
     input[type="checkbox"], input[type="radio"] { accent-color: var(--primary); }
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 
     /* Badges */
     .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
@@ -186,6 +187,39 @@
     .flex { display: flex; }
     .gap-2 { gap: 8px; }
     .items-center { align-items: center; }
+
+    /*
+     * Mobile: la barra lateral fija no entra, así que pasa a ser una franja
+     * arriba de todo con la marca y la navegación en fila (mismo criterio que
+     * el panel de Agroterra en pantallas chicas).
+     */
+    @media (max-width: 768px) {
+      body { flex-direction: column; }
+
+      .sidebar {
+        position: static; width: 100%; min-height: 0;
+        border-right: none; border-bottom: 1px solid var(--border);
+      }
+      .sidebar-brand { padding: 16px 16px 12px; }
+      .sidebar-nav {
+        flex-direction: row; gap: 8px; overflow-x: auto;
+        padding: 0 16px 12px; -webkit-overflow-scrolling: touch;
+      }
+      .nav-item { flex-shrink: 0; }
+      .nav-label { display: none; }
+
+      .main { margin-left: 0; }
+      .topbar { padding: 0 16px; height: 56px; }
+      .content { padding: 20px 16px 32px; }
+      .page-title { font-size: 22px; }
+
+      /* Todo lo que asume dos o tres columnas pasa a una sola. */
+      .form-row, .form-row-3, .grid-2 { grid-template-columns: 1fr; }
+      .filter-bar { gap: 12px; }
+      .filter-bar .form-group { flex: 1 1 100%; min-width: 0 !important; }
+      .card-header { flex-wrap: wrap; gap: 10px; }
+      .modal { max-width: none; margin: 0 16px; padding: 20px; }
+    }
   </style>
 </head>
 <body>
