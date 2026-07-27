@@ -4,22 +4,29 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TuPack Admin — Iniciar sesión</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap"
+  />
   <style>
-    /* Mismos tokens "cuaderno de campo" que el panel (ver partials/header.ejs). */
+    /* Mismos tokens de marca que el panel (ver partials/header.ejs). */
     :root {
-      --background: #faf8f5;
-      --foreground: #1a231f;
-      --card: #fdfdfc;
-      --muted-foreground: #5e6e66;
-      --primary: #1c4a35;
-      --primary-hover: #163a29;
-      --primary-foreground: #faf8f5;
-      --destructive: #ae3229;
-      --destructive-soft: #f8e9e7;
-      --border: #d5dbd1;
+      --background: #f5f7fa;
+      --foreground: #142a47;
+      --card: #ffffff;
+      --muted-foreground: #5a6b80;
+      --navy: #1b3a63;
+      --primary: #1e70b8;
+      --primary-hover: #17598f;
+      --primary-foreground: #ffffff;
+      --destructive: #b3261e;
+      --destructive-soft: #fbeae8;
+      --border: #e3e8ef;
       --radius: 8px;
-      --font-display: ui-serif, Georgia, "Iowan Old Style", "Palatino Linotype", serif;
-      --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      --font-display: "Poppins", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      --font-body: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -32,13 +39,14 @@
     .login-wrapper { width: 100%; max-width: 400px; padding: 20px; }
     .login-brand { text-align: center; margin-bottom: 28px; }
     .login-brand h1 {
-      font-family: var(--font-display); font-size: 26px; font-weight: 600;
-      color: var(--primary); letter-spacing: -0.4px;
+      font-family: var(--font-display); font-size: 28px; font-weight: 700;
+      color: var(--primary); letter-spacing: -0.5px;
     }
+    .login-brand h1 .brand-suffix { font-weight: 500; font-size: 18px; color: var(--muted-foreground); letter-spacing: 0; }
     .login-brand p { font-size: 14px; color: var(--muted-foreground); margin-top: 4px; }
     .login-card {
       background: var(--card); border-radius: var(--radius); border: 1px solid var(--border);
-      padding: 28px; box-shadow: 0 1px 2px rgba(26, 35, 31, 0.04);
+      padding: 28px; box-shadow: 0 1px 2px rgba(20, 42, 71, 0.05);
     }
     .login-card h2 {
       font-family: var(--font-display); font-size: 19px; font-weight: 600;
@@ -53,7 +61,7 @@
       transition: border-color 0.15s, box-shadow 0.15s;
     }
     .form-control::placeholder { color: var(--muted-foreground); }
-    .form-control:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(28, 74, 53, 0.12); }
+    .form-control:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(30, 112, 184, 0.18); }
     .btn-login {
       width: 100%; padding: 10px; background: var(--primary); color: var(--primary-foreground); border: none;
       border-radius: var(--radius); font-family: var(--font-body); font-size: 15px; font-weight: 500;
@@ -61,7 +69,7 @@
     }
     .btn-login:hover { background: var(--primary-hover); }
     .alert-error {
-      background: var(--destructive-soft); border: 1px solid #eccbc7; color: var(--destructive);
+      background: var(--destructive-soft); border: 1px solid #f3cfcb; color: var(--destructive);
       padding: 10px 14px; border-radius: var(--radius); font-size: 14px; margin-bottom: 20px;
     }
   </style>
@@ -69,7 +77,7 @@
 <body>
   <div class="login-wrapper">
     <div class="login-brand">
-      <h1>TuPack</h1>
+      <h1>TuPack<span class="brand-suffix">.com.uy</span></h1>
       <p>Panel de Administración</p>
     </div>
     <div class="login-card">
