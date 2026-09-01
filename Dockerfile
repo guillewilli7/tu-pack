@@ -15,7 +15,9 @@ COPY lib/api-spec/package.json        ./lib/api-spec/
 COPY lib/api-zod/package.json         ./lib/api-zod/
 COPY lib/db/package.json              ./lib/db/
 COPY lib/api-client-react/package.json ./lib/api-client-react/
-RUN pnpm install --frozen-lockfile
+# --allow-build: pnpm 11 no toma el onlyBuiltDependencies del workspace en esta
+# instalación y aborta si esbuild no puede correr su script de instalación.
+RUN pnpm install --frozen-lockfile --allow-build=esbuild
 
 COPY . .
 RUN pnpm --filter @workspace/api-server run build
