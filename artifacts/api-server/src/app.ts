@@ -1,4 +1,5 @@
 import express, { type Express } from "express";
+import ejs from "ejs";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import session from "express-session";
@@ -65,7 +66,10 @@ app.use(
   }),
 );
 
-// EJS views — copied to dist/views during build
+// EJS views — copied to dist/views during build.
+// El motor se registra a mano: Express lo cargaría con un require dinámico que
+// el bundle de esbuild no resuelve, y la imagen quedaría sin ejs en runtime.
+app.engine("ejs", (ejs as unknown as { __express: Parameters<Express["engine"]>[1] }).__express);
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
