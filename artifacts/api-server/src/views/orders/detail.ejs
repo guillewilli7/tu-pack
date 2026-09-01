@@ -24,9 +24,11 @@
       <table style="font-size:14px;width:100%;border-collapse:collapse;">
         <tr><td style="padding:6px 0;color:#5a6b80;width:140px;">ID</td><td><strong>#<%= order.id %></strong></td></tr>
         <tr><td style="padding:6px 0;color:#5a6b80;">Fecha</td><td><%= new Date(order.created_at).toLocaleString('es-UY') %></td></tr>
-        <tr><td style="padding:6px 0;color:#5a6b80;">Negocio</td><td><%= order.negocio || order.client_negocio || '—' %></td></tr>
+        <tr><td style="padding:6px 0;color:#5a6b80;">Cliente</td><td><%= order.client_negocio || order.negocio || '—' %></td></tr>
+        <tr><td style="padding:6px 0;color:#5a6b80;">Sucursal</td><td><%= order.sucursal || '—' %></td></tr>
+        <tr><td style="padding:6px 0;color:#5a6b80;">Entrega</td><td><%= [order.direccion_entrega, order.horario_entrega].filter(Boolean).join(' — ') || '—' %></td></tr>
         <tr><td style="padding:6px 0;color:#5a6b80;">Teléfono</td><td><%= order.phone || '—' %></td></tr>
-        <tr><td style="padding:6px 0;color:#5a6b80;">Cliente</td><td><% if (order.client_id) { %><a href="/clients/<%= order.client_id %>" class="btn-link"><%= order.client_negocio || order.codigo_cliente || order.client_id %></a><% } else { %>—<% } %></td></tr>
+        <tr><td style="padding:6px 0;color:#5a6b80;">Ficha</td><td><% if (order.business_id) { %><a href="/clients/<%= order.business_id %>" class="btn-link">Ver cliente y stock</a><% } else { %>—<% } %></td></tr>
         <tr><td style="padding:6px 0;color:#5a6b80;">Estado</td>
           <td>
             <% if (isPending) { %><span class="badge badge-yellow">Pendiente</span>
@@ -129,6 +131,34 @@
               <td><%= precioUnit !== null ? '$' + Number(precioUnit).toFixed(2) : '—' %></td>
               <td><%= subtotal !== null ? '$' + Number(subtotal).toFixed(2) : '—' %></td>
               <td class="text-muted"><%= item.notas || item.notes || '' %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</div>
+
+<div class="card section">
+  <div class="card-header"><span class="card-title">Impacto en el stock</span></div>
+  <div class="table-wrap">
+    <% if (!movimientos || !movimientos.length) { %>
+      <div class="table-empty">Esta orden no movió stock: ningún ítem coincidió con un producto del cliente.</div>
+    <% } else { %>
+      <table>
+        <thead>
+          <tr><th>Producto</th><th style="width:120px;">Movimiento</th><th style="width:140px;">Stock resultante</th><th style="width:140px;">Motivo</th></tr>
+        </thead>
+        <tbody>
+          <% movimientos.forEach(function(m) { %>
+            <tr>
+              <td><strong><%= m.nombre %></strong></td>
+              <td><%= m.delta > 0 ? '+' + m.delta : m.delta %></td>
+              <td>
+                <% if (m.stock_result < 0) { %><span class="badge badge-red"><%= m.stock_result %></span>
+                <% } else { %><%= m.stock_result %><% } %>
+              </td>
+              <td class="text-muted"><%= m.motivo %></td>
             </tr>
           <% }) %>
         </tbody>

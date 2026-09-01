@@ -42,9 +42,10 @@ router.get("/", async (req, res) => {
     const countQuery = `SELECT COUNT(*) FROM orders o ${baseWhere}`;
     const dataQuery = `
       SELECT o.id, o.negocio, o.status, o.total, o.created_at, o.client_id,
-             c.negocio AS client_negocio
+             b.nombre AS client_negocio, c.sucursal
       FROM orders o
-      LEFT JOIN clients c ON c.id = o.client_id
+      LEFT JOIN clients c    ON c.id = o.client_id
+      LEFT JOIN businesses b ON b.id = COALESCE(o.business_id, c.business_id)
       ${baseWhere}
       ORDER BY o.created_at DESC
       LIMIT $${idx} OFFSET $${idx + 1}
@@ -84,14 +85,24 @@ router.get("/new", (req, res) => {
 router.get("/:id", async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT o.*, c.negocio AS client_negocio, c.codigo_cliente
-       FROM orders o LEFT JOIN clients c ON c.id = o.client_id
-       WHERE o.id = $1`,
+      `SELECT o.*, b.nombre AS client_negocio, c.sucursal, c.codigo_cliente,
+              c.direccion_entrega, c.horario_entrega
+         FROM orders o
+         LEFT JOIN clients c    ON c.id = o.client_id
+         LEFT JOIN businesses b ON b.id = COALESCE(o.business_id, c.business_id)
+        WHERE o.id = $1`,
       [req.params.id]
     );
     if (!rows.length) return res.redirect("/orders");
+    const { rows: movimientos } = await pool.query(
+      `SELECT sm.delta, sm.stock_result, sm.motivo, sm.created_at, p.nombre
+         FROM stock_movements sm JOIN products p ON p.id = sm.product_id
+        WHERE sm.order_id = $1 ORDER BY sm.id`,
+      [req.params.id]
+    );
     res.render("orders/detail", {
       order: rows[0],
+      movimientos,
       nombre: req.session.nombre,
       success: req.query.success || null,
       error: null,
@@ -108,13 +119,17 @@ router.post("/:id", async (req, res) => {
   const renderError = async (msg: string) => {
     try {
       const { rows } = await pool.query(
-        `SELECT o.*, c.negocio AS client_negocio, c.codigo_cliente
-         FROM orders o LEFT JOIN clients c ON c.id = o.client_id
-         WHERE o.id = $1`,
+        `SELECT o.*, b.nombre AS client_negocio, c.sucursal, c.codigo_cliente,
+                c.direccion_entrega, c.horario_entrega
+           FROM orders o
+           LEFT JOIN clients c    ON c.id = o.client_id
+           LEFT JOIN businesses b ON b.id = COALESCE(o.business_id, c.business_id)
+          WHERE o.id = $1`,
         [req.params.id]
       );
       res.render("orders/detail", {
         order: rows[0] || {},
+        movimientos: [],
         nombre: req.session.nombre,
         success: null,
         error: msg,

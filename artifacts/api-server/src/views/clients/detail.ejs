@@ -1,13 +1,14 @@
-<%- include('../partials/header', { title: 'Cliente: ' + client.negocio, page: 'clients', nombre }) %>
+<%- include('../partials/header', { title: 'Cliente: ' + client.nombre, page: 'clients', nombre }) %>
 
 <div class="flex gap-2 items-center" style="margin-bottom:20px;">
   <a href="/clients" class="btn btn-secondary btn-sm">← Volver</a>
-  <form method="POST" action="/clients/<%= client.id %>/delete" style="margin-left:auto;" data-name="<%= client.negocio %>">
-    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar a ' + this.closest('form').dataset.name + '? Esta acción desactivará al cliente.')">Eliminar cliente</button>
+  <form method="POST" action="/clients/<%= client.id %>/deactivate" style="margin-left:auto;" data-name="<%= client.nombre %>">
+    <button type="submit" class="btn btn-sm btn-danger"
+      onclick="return confirm('¿Desactivar a ' + this.closest('form').dataset.name + '?')">Desactivar cliente</button>
   </form>
 </div>
 
-<% if (success) { %><div class="alert alert-success">Cambios guardados correctamente.</div><% } %>
+<% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
 <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
 
 <div class="card section">
@@ -16,98 +17,78 @@
     <form method="POST" action="/clients/<%= client.id %>/update">
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Código de cliente</label>
-          <input type="number" name="codigo_cliente" class="form-control" value="<%= client.codigo_cliente || '' %>" placeholder="Ej: 1042" />
+          <label class="form-label">Nombre</label>
+          <input class="form-control" name="nombre" value="<%= client.nombre %>" required />
         </div>
-        <div class="form-group">
-          <label class="form-label">Negocio</label>
-          <input name="negocio" class="form-control" value="<%= client.negocio || '' %>" required />
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Sucursal</label>
-          <input name="sucursal" class="form-control" value="<%= client.sucursal || '' %>" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Razón social</label>
-          <input name="razon_social" class="form-control" value="<%= client.razon_social || '' %>" />
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">RUT</label>
-          <input name="rut" class="form-control" value="<%= client.rut || '' %>" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Dirección de facturación</label>
-          <input name="direccion_facturacion" class="form-control" value="<%= client.direccion_facturacion || '' %>" />
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Dirección de entrega</label>
-          <input name="direccion_entrega" class="form-control" value="<%= client.direccion_entrega || '' %>" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Horario de entrega</label>
-          <input name="horario_entrega" class="form-control" value="<%= client.horario_entrega || '' %>" />
-        </div>
-      </div>
-      <div class="form-row">
         <div class="form-group">
           <label class="form-label">Estado</label>
-          <select name="activo" class="form-control">
-            <option value="true" <%= client.activo ? 'selected' : '' %>>Activo</option>
+          <select class="form-control" name="activo">
+            <option value="true"  <%= client.activo ? 'selected' : '' %>>Activo</option>
             <option value="false" <%= !client.activo ? 'selected' : '' %>>Inactivo</option>
           </select>
         </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notas</label>
+        <textarea class="form-control" name="notas" rows="2" style="resize:vertical;"><%= client.notas || '' %></textarea>
       </div>
       <button type="submit" class="btn btn-primary">Guardar cambios</button>
     </form>
   </div>
 </div>
 
+<!-- ── Productos y stock ────────────────────────────────────────────────── -->
 <div class="card section">
   <div class="card-header">
-    <span class="card-title">Productos del cliente (<%= clientProducts.length %>)</span>
-    <button class="btn btn-sm btn-primary" onclick="openAddProductModal()">+ Agregar producto</button>
+    <span class="card-title">Productos y stock (<%= clientProducts.length %>)</span>
+    <button class="btn btn-primary btn-sm" onclick="document.getElementById('add-product-modal').classList.add('open')">+ Agregar producto</button>
   </div>
   <div class="table-wrap">
     <table>
       <thead>
         <tr>
           <th>Producto</th>
-          <th>Costo</th>
-          <th>Precio cliente</th>
-          <th>Ratio</th>
-          <th></th>
+          <th style="width:150px;">Precio</th>
+          <th style="width:260px;">Stock / mínimo</th>
+          <th style="width:70px;"></th>
         </tr>
       </thead>
       <tbody>
         <% if (!clientProducts.length) { %>
-          <tr><td colspan="5" class="table-empty">No hay productos asignados.</td></tr>
+          <tr><td colspan="4" class="table-empty">Este cliente todavía no tiene productos.</td></tr>
         <% } %>
         <% clientProducts.forEach(function(p) { %>
+          <% var bajoMinimo = p.stock_minimo !== null && p.stock <= p.stock_minimo; %>
           <tr>
-            <td><strong><%= p.nombre %></strong> <span class="text-muted"><%= p.codigo_prod %></span></td>
-            <td>$<%= Number(p.costo || 0).toFixed(2) %></td>
             <td>
-              <form class="inline-form" method="POST" action="/clients/<%= client.id %>/products/update-price">
-                <input type="hidden" name="cp_id" value="<%= p.cp_id %>" />
-                <input type="number" name="precio_cliente" class="form-control" step="0.01" value="<%= Number(p.precio_cliente || 0).toFixed(2) %>" style="width:100px;" />
-                <button type="submit" class="btn btn-sm btn-primary">OK</button>
+              <strong><%= p.nombre %></strong>
+              <span class="text-muted"><%= p.codigo_prod || '' %></span>
+              <% if (p.notas) { %><div class="text-muted"><%= p.notas %></div><% } %>
+            </td>
+            <td>
+              <form method="POST" action="/clients/<%= client.id %>/products/update-price" class="inline-form">
+                <input type="hidden" name="bp_id" value="<%= p.bp_id %>" />
+                <input type="number" step="0.01" name="precio" class="form-control"
+                       value="<%= p.precio === null ? '' : Number(p.precio).toFixed(2) %>" placeholder="a definir" style="width:90px;" />
+                <button type="submit" class="btn btn-sm btn-secondary">OK</button>
               </form>
             </td>
             <td>
-              <% const ratio = p.costo > 0 ? (p.precio_cliente / p.costo) : null; %>
-              <span class="badge <%= ratio && ratio > 1 ? 'badge-blue' : 'badge-gray' %>">
-                <%= ratio ? ratio.toFixed(2) + 'x' : '—' %>
-              </span>
+              <form method="POST" action="/clients/<%= client.id %>/products/update-stock" class="inline-form">
+                <input type="hidden" name="product_id" value="<%= p.product_id %>" />
+                <input type="number" name="stock" class="form-control" value="<%= p.stock %>"
+                       style="width:100px;<%= p.stock < 0 ? 'border-color:var(--destructive);color:var(--destructive);font-weight:600;' : '' %>" />
+                <input type="number" name="stock_minimo" class="form-control"
+                       value="<%= p.stock_minimo === null ? '' : p.stock_minimo %>" placeholder="mínimo" style="width:90px;" />
+                <button type="submit" class="btn btn-sm btn-secondary">Guardar</button>
+                <% if (p.stock < 0) { %><span class="badge badge-red">faltan <%= Math.abs(p.stock) %></span>
+                <% } else if (bajoMinimo) { %><span class="badge badge-yellow">bajo mínimo</span><% } %>
+              </form>
             </td>
             <td>
-              <form method="POST" action="/clients/<%= client.id %>/products/<%= p.cp_id %>/remove" style="display:inline;">
-                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar este producto del cliente?')">Eliminar</button>
+              <form method="POST" action="/clients/<%= client.id %>/products/<%= p.bp_id %>/remove" data-name="<%= p.nombre %>">
+                <button type="submit" class="btn btn-sm btn-secondary"
+                  onclick="return confirm('¿Quitar ' + this.closest('form').dataset.name + ' de este cliente?')">Quitar</button>
               </form>
             </td>
           </tr>
@@ -117,37 +98,107 @@
   </div>
 </div>
 
+<!-- ── Sucursales ──────────────────────────────────────────────────────── -->
 <div class="card section">
   <div class="card-header">
-    <span class="card-title">Teléfonos (<%= phones.length %>)</span>
-    <button class="btn btn-sm btn-primary" onclick="document.getElementById('add-phone-modal').classList.add('open')">+ Agregar teléfono</button>
+    <span class="card-title">Sucursales y facturación (<%= branches.length %>)</span>
+    <button class="btn btn-primary btn-sm" onclick="document.getElementById('add-branch-modal').classList.add('open')">+ Agregar sucursal</button>
   </div>
+  <div class="card-body">
+    <% if (!branches.length) { %>
+      <p class="text-muted">Este cliente no tiene sucursales cargadas.</p>
+    <% } %>
+    <% branches.forEach(function(b, i) { %>
+      <form method="POST" action="/clients/<%= client.id %>/branches/<%= b.id %>/update"
+            style="<%= i ? 'border-top:1px solid var(--border);padding-top:20px;margin-top:20px;' : '' %>">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Sucursal</label>
+            <input class="form-control" name="sucursal" value="<%= b.sucursal || '' %>" placeholder="(única)" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Estado</label>
+            <select class="form-control" name="activo">
+              <option value="true"  <%= b.activo ? 'selected' : '' %>>Activa</option>
+              <option value="false" <%= !b.activo ? 'selected' : '' %>>Inactiva</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Razón social</label>
+            <input class="form-control" name="razon_social" value="<%= b.razon_social || '' %>" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">RUT</label>
+            <input class="form-control" name="rut" value="<%= b.rut || '' %>" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Dirección de facturación</label>
+            <input class="form-control" name="direccion_facturacion" value="<%= b.direccion_facturacion || '' %>" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Dirección de entrega</label>
+            <input class="form-control" name="direccion_entrega" value="<%= b.direccion_entrega || '' %>" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Horario de entrega</label>
+            <input class="form-control" name="horario_entrega" value="<%= b.horario_entrega || '' %>" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Observaciones</label>
+            <input class="form-control" name="info_cliente" value="<%= (b.info_cliente || '').replace(/\n/g, ' · ') %>" />
+          </div>
+        </div>
+        <div class="flex gap-2 items-center">
+          <button type="submit" class="btn btn-primary btn-sm">Guardar sucursal</button>
+          <% var tels = phones.filter(function(t) { return t.client_id === b.id && t.activo; }); %>
+          <span class="text-muted">
+            Teléfonos: <%= tels.length ? tels.map(function(t) { return t.phone + (t.label ? ' (' + t.label + ')' : ''); }).join(' · ') : 'sin teléfonos' %>
+          </span>
+        </div>
+      </form>
+
+      <div class="inline-form" style="margin-top:10px;">
+        <form method="POST" action="/clients/<%= client.id %>/phones/add" class="inline-form">
+          <input type="hidden" name="client_id" value="<%= b.id %>" />
+          <input class="form-control" name="phone" placeholder="Teléfono" style="width:150px;" required />
+          <input class="form-control" name="label" placeholder="Etiqueta" style="width:130px;" />
+          <button type="submit" class="btn btn-sm btn-secondary">+ Teléfono</button>
+        </form>
+      </div>
+    <% }) %>
+  </div>
+</div>
+
+<!-- ── Últimas órdenes ─────────────────────────────────────────────────── -->
+<div class="card section">
+  <div class="card-header"><span class="card-title">Últimas órdenes</span></div>
   <div class="table-wrap">
     <table>
       <thead>
-        <tr>
-          <th>Teléfono</th>
-          <th>Etiqueta</th>
-          <th>Estado</th>
-          <th></th>
-        </tr>
+        <tr><th style="width:80px;">#</th><th style="width:130px;">Fecha</th><th>Sucursal</th><th style="width:140px;">Estado</th><th style="width:120px;">Total</th></tr>
       </thead>
       <tbody>
-        <% if (!phones.length) { %>
-          <tr><td colspan="4" class="table-empty">No hay teléfonos registrados.</td></tr>
+        <% if (!orders.length) { %>
+          <tr><td colspan="5" class="table-empty">Todavía no hay órdenes de este cliente.</td></tr>
         <% } %>
-        <% phones.forEach(function(ph) { %>
-          <tr>
-            <td><strong><%= ph.phone %></strong></td>
-            <td><%= ph.label || '—' %></td>
-            <td><span class="badge <%= ph.activo ? 'badge-green' : 'badge-red' %>"><%= ph.activo ? 'Activo' : 'Inactivo' %></span></td>
+        <% orders.forEach(function(o) { %>
+          <tr style="cursor:pointer;" onclick="window.location='/orders/<%= o.id %>'">
+            <td class="text-muted"><%= o.id %></td>
+            <td><%= new Date(o.created_at).toLocaleDateString('es-UY') %></td>
+            <td><%= o.sucursal || '—' %></td>
             <td>
-              <% if (ph.activo) { %>
-                <form method="POST" action="/clients/<%= client.id %>/phones/<%= ph.id %>/deactivate" style="display:inline;">
-                  <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('¿Desactivar este teléfono?')">Desactivar</button>
-                </form>
-              <% } %>
+              <% if (o.status === 'pendiente') { %><span class="badge badge-yellow">Pendiente</span>
+              <% } else if (o.status === 'en_proceso') { %><span class="badge badge-blue">En proceso</span>
+              <% } else if (o.status === 'cancelado') { %><span class="badge badge-red">Cancelada</span>
+              <% } else { %><span class="badge badge-green"><%= o.status %></span><% } %>
             </td>
+            <td>$<%= Number(o.total || 0).toFixed(2) %></td>
           </tr>
         <% }) %>
       </tbody>
@@ -155,132 +206,53 @@
   </div>
 </div>
 
-<script id="products-data" type="application/json">
-<% const safeProducts = allProducts.map(function(p) { return { id: p.id, nombre: p.nombre, codigo_prod: p.codigo_prod }; }); %><%- JSON.stringify(safeProducts) %>
-</script>
-
-<!-- Add Product Modal -->
+<!-- Modales -->
 <div class="modal-backdrop" id="add-product-modal">
   <div class="modal">
     <h3>Agregar producto</h3>
-    <form method="POST" action="/clients/<%= client.id %>/products/add" id="add-product-form">
+    <form method="POST" action="/clients/<%= client.id %>/products/add">
       <div class="form-group">
-        <label class="form-label">Buscar producto</label>
-        <input type="text" id="product-search-input" class="form-control" placeholder="Escribir nombre o código..." autocomplete="off" />
-        <div id="product-dropdown" style="position:relative;">
-          <div id="product-list" style="display:none;position:absolute;top:2px;left:0;right:0;background:#ffffff;border:1px solid #e3e8ef;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.1);max-height:200px;overflow-y:auto;z-index:200;"></div>
-        </div>
-        <input type="hidden" name="product_id" id="selected-product-id" required />
-        <div id="selected-product-label" style="margin-top:6px;font-size:13px;color:#1e70b8;display:none;"></div>
+        <label class="form-label">Producto</label>
+        <select name="product_id" class="form-control" required>
+          <option value="">Elegí un producto…</option>
+          <% allProducts.forEach(function(p) { %>
+            <option value="<%= p.id %>"><%= p.nombre %><%= p.codigo_prod ? ' — ' + p.codigo_prod : '' %></option>
+          <% }) %>
+        </select>
       </div>
-      <div class="form-group">
-        <label class="form-label">Precio cliente ($)</label>
-        <input type="number" name="precio_cliente" class="form-control" step="0.01" value="0" required />
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Precio</label>
+          <input type="number" step="0.01" name="precio" class="form-control" placeholder="a definir" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Stock inicial</label>
+          <input type="number" name="stock" class="form-control" value="0" />
+        </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" onclick="closeAddProductModal()">Cancelar</button>
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('add-product-modal').classList.remove('open')">Cancelar</button>
         <button type="submit" class="btn btn-primary">Agregar</button>
       </div>
     </form>
   </div>
 </div>
 
-<!-- Add Phone Modal -->
-<div class="modal-backdrop" id="add-phone-modal">
+<div class="modal-backdrop" id="add-branch-modal">
   <div class="modal">
-    <h3>Agregar teléfono</h3>
-    <form method="POST" action="/clients/<%= client.id %>/phones/add">
+    <h3>Agregar sucursal</h3>
+    <form method="POST" action="/clients/<%= client.id %>/branches/add">
       <div class="form-group">
-        <label class="form-label">Número de teléfono</label>
-        <input type="text" name="phone" class="form-control" placeholder="598 9X XXX XXX" required />
-      </div>
-      <div class="form-group">
-        <label class="form-label">Etiqueta</label>
-        <input type="text" name="label" class="form-control" placeholder="Principal, WhatsApp, etc." />
+        <label class="form-label">Nombre de la sucursal</label>
+        <input class="form-control" name="sucursal" placeholder="Ej: POCITOS" />
+        <p class="text-muted mt-1">Los datos de facturación se completan después, en la ficha.</p>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" onclick="document.getElementById('add-phone-modal').classList.remove('open')">Cancelar</button>
-        <button type="submit" class="btn btn-primary">Guardar</button>
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('add-branch-modal').classList.remove('open')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Agregar</button>
       </div>
     </form>
   </div>
 </div>
-
-<script>
-  var allProducts = JSON.parse(document.getElementById('products-data').textContent);
-
-  document.querySelectorAll('.modal-backdrop').forEach(function(bd) {
-    bd.addEventListener('click', function(e) {
-      if (e.target === bd) bd.classList.remove('open');
-    });
-  });
-
-  function openAddProductModal() {
-    document.getElementById('add-product-modal').classList.add('open');
-    document.getElementById('product-search-input').value = '';
-    document.getElementById('selected-product-id').value = '';
-    document.getElementById('selected-product-label').style.display = 'none';
-    document.getElementById('product-list').style.display = 'none';
-    setTimeout(function() { document.getElementById('product-search-input').focus(); }, 100);
-  }
-
-  function closeAddProductModal() {
-    document.getElementById('add-product-modal').classList.remove('open');
-  }
-
-  function selectProduct(id, nombre, codigo) {
-    document.getElementById('selected-product-id').value = id;
-    var lbl = nombre + ' (' + codigo + ')';
-    document.getElementById('product-search-input').value = lbl;
-    var labelEl = document.getElementById('selected-product-label');
-    labelEl.textContent = 'Seleccionado: ' + lbl;
-    labelEl.style.display = 'block';
-    document.getElementById('product-list').style.display = 'none';
-  }
-
-  var searchInput = document.getElementById('product-search-input');
-  var productList = document.getElementById('product-list');
-
-  searchInput.addEventListener('input', function() {
-    var q = this.value.toLowerCase().trim();
-    while (productList.firstChild) productList.removeChild(productList.firstChild);
-    if (!q) { productList.style.display = 'none'; return; }
-
-    var matches = allProducts.filter(function(p) {
-      return p.nombre.toLowerCase().includes(q) ||
-             (p.codigo_prod && p.codigo_prod.toLowerCase().includes(q));
-    }).slice(0, 20);
-
-    if (!matches.length) {
-      var empty = document.createElement('div');
-      empty.style.cssText = 'padding:10px 14px;color:#5a6b80;font-size:13px;';
-      empty.textContent = 'Sin resultados';
-      productList.appendChild(empty);
-    } else {
-      matches.forEach(function(p) {
-        var item = document.createElement('div');
-        item.style.cssText = 'padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid #f0f3f8;';
-        item.addEventListener('mouseover', function() { this.style.background = '#f0f3f8'; });
-        item.addEventListener('mouseout', function() { this.style.background = ''; });
-        item.addEventListener('click', function() { selectProduct(p.id, p.nombre, p.codigo_prod); });
-        var strong = document.createElement('strong');
-        strong.textContent = p.nombre;
-        var code = document.createElement('span');
-        code.style.color = '#5a6b80';
-        code.textContent = ' (' + p.codigo_prod + ')';
-        item.appendChild(strong);
-        item.appendChild(code);
-        productList.appendChild(item);
-      });
-    }
-    productList.style.display = 'block';
-  });
-
-  document.addEventListener('click', function(e) {
-    if (!document.getElementById('product-dropdown').contains(e.target) && e.target !== searchInput) {
-      productList.style.display = 'none';
-    }
-  });
-</script>
 
 <%- include('../partials/footer') %>

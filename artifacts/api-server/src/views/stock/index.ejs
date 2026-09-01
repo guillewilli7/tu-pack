@@ -1,0 +1,89 @@
+<%- include('../partials/header', { title: 'Stock', page: 'stock', nombre }) %>
+
+<% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
+<% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+<div class="card section">
+  <div class="card-header"><span class="card-title">Filtros</span></div>
+  <div class="card-body">
+    <form method="GET" action="/stock">
+      <div class="filter-bar">
+        <div class="form-group" style="flex:1;min-width:220px;">
+          <label class="form-label">Cliente o producto</label>
+          <input type="text" name="q" class="form-control" value="<%= q %>" placeholder="Buscar..." />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Mostrar</label>
+          <select name="filtro" class="form-control">
+            <option value="todos"      <%= filtro === 'todos'      ? 'selected' : '' %>>Todo el stock (<%= totales.total %>)</option>
+            <option value="faltante"   <%= filtro === 'faltante'   ? 'selected' : '' %>>Sin stock o en negativo (<%= totales.faltante %>)</option>
+            <option value="bajo"       <%= filtro === 'bajo'       ? 'selected' : '' %>>Bajo el mínimo (<%= totales.bajo %>)</option>
+            <option value="sin_precio" <%= filtro === 'sin_precio' ? 'selected' : '' %>>Sin precio definido (<%= totales.sin_precio %>)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <button type="submit" class="btn btn-primary">Filtrar</button>
+          <a href="/stock" class="btn btn-secondary" style="margin-left:8px;">Limpiar</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Productos (<%= filas.length %>)</span>
+    <span class="text-muted">Editá el stock en la fila y guardá</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Cliente</th>
+          <th>Producto</th>
+          <th style="width:110px;">Precio</th>
+          <th style="width:120px;">Stock</th>
+          <th style="width:120px;">Mínimo</th>
+          <th style="width:90px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (!filas.length) { %>
+          <tr><td colspan="6" class="table-empty">No hay productos que cumplan el filtro.</td></tr>
+        <% } %>
+        <% filas.forEach(function(f) { %>
+          <% var bajoMinimo = f.stock_minimo !== null && f.stock <= f.stock_minimo; %>
+          <tr>
+            <td><a href="/clients/<%= f.business_id %>" class="btn-link"><%= f.negocio %></a></td>
+            <td>
+              <strong><%= f.producto %></strong>
+              <% if (f.notas) { %><div class="text-muted"><%= f.notas %></div><% } %>
+            </td>
+            <td>
+              <% if (f.precio === null) { %>
+                <span class="badge badge-yellow">a definir</span>
+              <% } else { %>
+                $<%= Number(f.precio).toFixed(2) %>
+              <% } %>
+            </td>
+            <td colspan="3">
+              <form method="POST" action="/stock/update" class="inline-form">
+                <input type="hidden" name="business_id" value="<%= f.business_id %>" />
+                <input type="hidden" name="product_id" value="<%= f.product_id %>" />
+                <input type="hidden" name="volver_a" value="/stock?q=<%= encodeURIComponent(q) %>&filtro=<%= filtro %>" />
+                <input type="number" name="stock" class="form-control" value="<%= f.stock %>"
+                       style="width:100px;<%= f.stock < 0 ? 'border-color:var(--destructive);color:var(--destructive);font-weight:600;' : (bajoMinimo ? 'border-color:var(--accent);' : '') %>" />
+                <input type="number" name="stock_minimo" class="form-control" value="<%= f.stock_minimo === null ? '' : f.stock_minimo %>" placeholder="mínimo" style="width:100px;" />
+                <button type="submit" class="btn btn-sm btn-secondary">Guardar</button>
+                <% if (f.stock < 0) { %><span class="badge badge-red">faltan <%= Math.abs(f.stock) %></span><% } %>
+                <% if (f.stock >= 0 && bajoMinimo) { %><span class="badge badge-yellow">bajo mínimo</span><% } %>
+              </form>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

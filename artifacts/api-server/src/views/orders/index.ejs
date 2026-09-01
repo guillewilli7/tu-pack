@@ -54,7 +54,7 @@
         <tr>
           <th>#</th>
           <th>Fecha</th>
-          <th>Negocio</th>
+          <th>Cliente</th>
           <th>Estado</th>
           <th>Total</th>
           <th></th>
@@ -68,7 +68,7 @@
           <tr style="cursor:pointer;" onclick="window.location='/orders/<%= o.id %>'">
             <td class="text-muted"><%= o.id %></td>
             <td><%= new Date(o.created_at).toLocaleDateString('es-UY', {day:'2-digit',month:'2-digit',year:'numeric'}) %></td>
-            <td><strong><%= o.negocio || o.client_negocio || '—' %></strong></td>
+            <td><strong><%= o.client_negocio || o.negocio || '—' %></strong><% if (o.sucursal) { %> <span class="text-muted"><%= o.sucursal %></span><% } %></td>
             <td>
               <% if (o.status === 'pendiente') { %>
                 <span class="badge badge-yellow">Pendiente</span>

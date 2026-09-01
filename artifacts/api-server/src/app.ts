@@ -10,6 +10,7 @@ import healthRouter from "./routes/health";
 import ordersRouter from "./routes/orders";
 import clientsRouter from "./routes/clients";
 import productsRouter from "./routes/products";
+import stockRouter from "./routes/stock";
 import { requireAuth } from "./middleware/auth";
 import { logger } from "./lib/logger";
 import { pool } from "./db";
@@ -78,6 +79,7 @@ app.use("/api", healthRouter);
 app.use("/orders", requireAuth, ordersRouter);
 app.use("/clients", requireAuth, clientsRouter);
 app.use("/products", requireAuth, productsRouter);
+app.use("/stock", requireAuth, stockRouter);
 
 // Root redirect
 app.get("/", requireAuth, (_req, res) => {

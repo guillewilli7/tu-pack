@@ -1,8 +1,8 @@
 <%- include('../partials/header', { title: 'Clientes', page: 'clients', nombre }) %>
 
 <% if (success === 'deactivated') { %><div class="alert alert-success">Cliente desactivado correctamente.</div><% } %>
-<% if (success === 'deleted') { %><div class="alert alert-success">Cliente eliminado correctamente.</div><% } %>
-<% if (error) { %><div class="alert alert-error">Error al realizar la acción. Intente nuevamente.</div><% } %>
+<% if (success && success !== 'deactivated') { %><div class="alert alert-success">Cambios guardados correctamente.</div><% } %>
+<% if (error) { %><div class="alert alert-error">Error al realizar la acción. Intentá de nuevo.</div><% } %>
 
 <div class="card section">
   <div class="card-header">
@@ -11,8 +11,8 @@
   <div class="card-body">
     <form method="GET" action="/clients">
       <div class="filter-bar">
-        <div class="form-group" style="flex:1;min-width:200px;">
-          <label class="form-label">Nombre o código</label>
+        <div class="form-group" style="flex:1;min-width:220px;">
+          <label class="form-label">Nombre del cliente</label>
           <input type="text" name="search" class="form-control" value="<%= search %>" placeholder="Buscar cliente..." />
         </div>
         <div class="form-group">
@@ -33,31 +33,34 @@
     <table>
       <thead>
         <tr>
-          <th>Código</th>
-          <th>Negocio</th>
-          <th>Sucursal</th>
-          <th>Estado</th>
-          <th></th>
+          <th>Cliente</th>
+          <th style="width:110px;">Sucursales</th>
+          <th style="width:110px;">Productos</th>
+          <th style="width:150px;">Sin stock</th>
+          <th style="width:100px;">Estado</th>
+          <th style="width:70px;"></th>
         </tr>
       </thead>
       <tbody>
         <% if (!clients.length) { %>
-          <tr><td colspan="5" class="table-empty">No se encontraron clientes.</td></tr>
+          <tr><td colspan="6" class="table-empty">No se encontraron clientes.</td></tr>
         <% } %>
         <% clients.forEach(function(c) { %>
           <tr style="cursor:pointer;" onclick="window.location='/clients/<%= c.id %>'">
-            <td class="text-muted"><%= c.codigo_cliente || '—' %></td>
-            <td><strong><%= c.negocio %></strong></td>
-            <td><%= c.sucursal || '—' %></td>
-            <td><span class="badge <%= c.activo ? 'badge-green' : 'badge-red' %>"><%= c.activo ? 'Activo' : 'Inactivo' %></span></td>
-            <td onclick="event.stopPropagation()" style="white-space:nowrap;">
-              <a href="/clients/<%= c.id %>" class="btn btn-sm btn-secondary">Ver</a>
-              <% if (c.activo) { %>
-                <form method="POST" action="/clients/<%= c.id %>/deactivate" style="display:inline;margin-left:6px;" data-name="<%= c.negocio %>">
-                  <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('¿Desactivar a ' + this.closest('form').dataset.name + '?')">Desactivar</button>
-                </form>
+            <td><strong><%= c.nombre %></strong></td>
+            <td><%= c.sucursales %></td>
+            <td><%= c.productos %></td>
+            <td>
+              <% if (Number(c.sin_stock) > 0) { %>
+                <span class="badge badge-red"><%= c.sin_stock %> sin stock</span>
+              <% } else if (Number(c.productos) > 0) { %>
+                <span class="badge badge-green">Al día</span>
+              <% } else { %>
+                <span class="text-muted">—</span>
               <% } %>
             </td>
+            <td><span class="badge <%= c.activo ? 'badge-green' : 'badge-red' %>"><%= c.activo ? 'Activo' : 'Inactivo' %></span></td>
+            <td onclick="event.stopPropagation()"><a href="/clients/<%= c.id %>" class="btn btn-sm btn-secondary">Ver</a></td>
           </tr>
         <% }) %>
       </tbody>

@@ -1,19 +1,31 @@
 import { Router } from "express";
 import { pool } from "../db";
 
+/**
+ * Sección "Clientes" = negocios. El negocio es el dueño del stock y de los
+ * precios; sus sucursales guardan los datos de facturación y de entrega.
+ */
 const router = Router();
 
 router.get("/", async (req, res) => {
   const { search, success, error: qErr } = req.query as Record<string, string>;
   try {
-    let query = `SELECT id, codigo_cliente, negocio, sucursal, activo FROM clients WHERE 1=1`;
     const params: unknown[] = [];
+    let filtro = "";
     if (search) {
-      query += ` AND (negocio ILIKE $1 OR codigo_cliente ILIKE $1)`;
       params.push(`%${search}%`);
+      filtro = ` WHERE b.nombre ILIKE $1`;
     }
-    query += " ORDER BY negocio";
-    const { rows } = await pool.query(query, params);
+    const { rows } = await pool.query(
+      `SELECT b.id, b.nombre, b.activo,
+              (SELECT count(*) FROM clients c WHERE c.business_id = b.id)            AS sucursales,
+              (SELECT count(*) FROM business_products bp WHERE bp.business_id = b.id) AS productos,
+              (SELECT count(*) FROM business_products bp
+                WHERE bp.business_id = b.id AND bp.stock <= 0)                        AS sin_stock
+         FROM businesses b${filtro}
+        ORDER BY b.nombre`,
+      params
+    );
     res.render("clients/index", {
       clients: rows,
       search: search || "",
@@ -24,11 +36,8 @@ router.get("/", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.render("clients/index", {
-      clients: [],
-      search: "",
-      nombre: req.session.nombre,
-      success: null,
-      error: "Error al cargar clientes.",
+      clients: [], search: "", nombre: req.session.nombre,
+      success: null, error: "Error al cargar los clientes.",
     });
   }
 });
@@ -37,32 +46,71 @@ router.get("/new", (req, res) => {
   res.render("clients/new", { nombre: req.session.nombre, error: null });
 });
 
+router.post("/new", async (req, res) => {
+  const { nombre, notas } = req.body as Record<string, string>;
+  if (!nombre?.trim()) {
+    return res.render("clients/new", {
+      nombre: req.session.nombre, error: "El nombre del cliente es obligatorio.",
+    });
+  }
+  try {
+    const { rows } = await pool.query(
+      "INSERT INTO businesses (nombre, notas) VALUES ($1, $2) RETURNING id",
+      [nombre.trim(), notas || null]
+    );
+    // Un negocio siempre tiene al menos una sucursal (la principal).
+    await pool.query("INSERT INTO clients (business_id) VALUES ($1)", [rows[0].id]);
+    res.redirect(`/clients/${rows[0].id}?success=1`);
+  } catch (err) {
+    const duplicado = (err as { code?: string }).code === "23505";
+    res.render("clients/new", {
+      nombre: req.session.nombre,
+      error: duplicado ? "Ya existe un cliente con ese nombre." : "Error al crear el cliente.",
+    });
+  }
+});
+
 router.get("/:id", async (req, res) => {
   const { success, error: qErr } = req.query as Record<string, string>;
   try {
-    const [clientRes, productsRes, allProductsRes, phonesRes] = await Promise.all([
-      pool.query("SELECT * FROM clients WHERE id = $1", [req.params.id]),
+    const [negocio, sucursales, productos, catalogo, ordenes, telefonos] = await Promise.all([
+      pool.query("SELECT * FROM businesses WHERE id = $1", [req.params.id]),
+      pool.query("SELECT * FROM clients WHERE business_id = $1 ORDER BY sucursal NULLS FIRST, id", [req.params.id]),
       pool.query(
-        `SELECT cp.id AS cp_id, cp.precio_cliente, cp.activo AS cp_activo,
-                p.id AS product_id, p.nombre, p.costo, p.codigo_prod, p.unidad
-         FROM client_products cp
-         JOIN products p ON p.id = cp.product_id
-         WHERE cp.client_id = $1
-         ORDER BY p.nombre`,
+        `SELECT bp.id AS bp_id, bp.precio, bp.stock, bp.stock_minimo, bp.notas, bp.activo,
+                p.id AS product_id, p.nombre, p.codigo_prod, p.unidad
+           FROM business_products bp
+           JOIN products p ON p.id = bp.product_id
+          WHERE bp.business_id = $1
+          ORDER BY p.nombre`,
         [req.params.id]
       ),
       pool.query("SELECT id, nombre, codigo_prod FROM products WHERE activo = true ORDER BY nombre"),
-      pool.query("SELECT * FROM client_phones WHERE client_id = $1 ORDER BY id", [req.params.id]),
+      pool.query(
+        `SELECT o.id, o.created_at, o.status, o.total, c.sucursal
+           FROM orders o LEFT JOIN clients c ON c.id = o.client_id
+          WHERE o.business_id = $1 ORDER BY o.created_at DESC LIMIT 10`,
+        [req.params.id]
+      ),
+      pool.query(
+        `SELECT ph.*, c.sucursal FROM client_phones ph
+           JOIN clients c ON c.id = ph.client_id
+          WHERE c.business_id = $1 ORDER BY ph.id`,
+        [req.params.id]
+      ),
     ]);
-    if (!clientRes.rows.length) return res.redirect("/clients");
+    if (!negocio.rows.length) return res.redirect("/clients");
+
     res.render("clients/detail", {
-      client: clientRes.rows[0],
-      clientProducts: productsRes.rows,
-      allProducts: allProductsRes.rows,
-      phones: phonesRes.rows,
+      client: negocio.rows[0],
+      branches: sucursales.rows,
+      clientProducts: productos.rows,
+      allProducts: catalogo.rows,
+      orders: ordenes.rows,
+      phones: telefonos.rows,
       nombre: req.session.nombre,
       success: success ? "Cambios guardados correctamente." : null,
-      error: qErr ? "Error al guardar los cambios. Intente nuevamente." : null,
+      error: qErr ? "Error al guardar los cambios. Intentá de nuevo." : null,
     });
   } catch (err) {
     console.error(err);
@@ -70,115 +118,150 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+const volver = (res: import("express").Response, id: string, ok = true) =>
+  res.redirect(`/clients/${id}?${ok ? "success=1" : "error=1"}`);
+
 router.post("/:id/update", async (req, res) => {
-  const { codigo_cliente, negocio, sucursal, razon_social, rut, direccion_facturacion, direccion_entrega, horario_entrega, activo } =
-    req.body as Record<string, string>;
+  const { nombre, notas, activo } = req.body as Record<string, string>;
   try {
     await pool.query(
-      `UPDATE clients SET codigo_cliente=$1, negocio=$2, sucursal=$3, razon_social=$4, rut=$5,
-       direccion_facturacion=$6, direccion_entrega=$7, horario_entrega=$8,
-       activo=$9, updated_at=NOW() WHERE id=$10`,
-      [
-        codigo_cliente ? parseInt(codigo_cliente, 10) : null,
-        negocio, sucursal, razon_social, rut,
-        direccion_facturacion, direccion_entrega, horario_entrega,
-        activo === "true", req.params.id,
-      ]
+      "UPDATE businesses SET nombre=$1, notas=$2, activo=$3, updated_at=NOW() WHERE id=$4",
+      [nombre, notas || null, activo === "true", req.params.id]
     );
-    res.redirect(`/clients/${req.params.id}?success=1`);
+    volver(res, req.params.id);
   } catch (err) {
     console.error(err);
-    res.redirect(`/clients/${req.params.id}?error=1`);
+    volver(res, req.params.id, false);
+  }
+});
+
+// ── Sucursales ──────────────────────────────────────────────────────────────
+router.post("/:id/branches/add", async (req, res) => {
+  const { sucursal } = req.body as Record<string, string>;
+  try {
+    await pool.query("INSERT INTO clients (business_id, sucursal) VALUES ($1, $2)", [
+      req.params.id, sucursal || null,
+    ]);
+    volver(res, req.params.id);
+  } catch (err) {
+    console.error(err);
+    volver(res, req.params.id, false);
+  }
+});
+
+router.post("/:id/branches/:branchId/update", async (req, res) => {
+  const b = req.body as Record<string, string>;
+  try {
+    await pool.query(
+      `UPDATE clients SET sucursal=$1, razon_social=$2, rut=$3, direccion_facturacion=$4,
+              direccion_entrega=$5, horario_entrega=$6, info_cliente=$7, activo=$8, updated_at=NOW()
+        WHERE id=$9 AND business_id=$10`,
+      [b.sucursal || null, b.razon_social || null, b.rut || null, b.direccion_facturacion || null,
+       b.direccion_entrega || null, b.horario_entrega || null, b.info_cliente || null,
+       b.activo === "true", req.params.branchId, req.params.id]
+    );
+    volver(res, req.params.id);
+  } catch (err) {
+    console.error(err);
+    volver(res, req.params.id, false);
+  }
+});
+
+// ── Productos, precio y stock ───────────────────────────────────────────────
+router.post("/:id/products/add", async (req, res) => {
+  const { product_id, precio, stock } = req.body as Record<string, string>;
+  try {
+    await pool.query(
+      `INSERT INTO business_products (business_id, product_id, precio, stock)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (business_id, product_id) DO NOTHING`,
+      [req.params.id, product_id, precio ? parseFloat(precio) : null, parseInt(stock || "0", 10) || 0]
+    );
+    volver(res, req.params.id);
+  } catch (err) {
+    console.error(err);
+    volver(res, req.params.id, false);
   }
 });
 
 router.post("/:id/products/update-price", async (req, res) => {
-  const { cp_id, precio_cliente } = req.body as Record<string, string>;
+  const { bp_id, precio } = req.body as Record<string, string>;
   try {
     await pool.query(
-      "UPDATE client_products SET precio_cliente=$1, updated_at=NOW() WHERE id=$2 AND client_id=$3",
-      [parseFloat(precio_cliente), cp_id, req.params.id]
+      "UPDATE business_products SET precio=$1, updated_at=NOW() WHERE id=$2 AND business_id=$3",
+      [precio === "" ? null : parseFloat(precio), bp_id, req.params.id]
     );
-    res.redirect(`/clients/${req.params.id}?success=1`);
+    volver(res, req.params.id);
   } catch (err) {
     console.error(err);
-    res.redirect(`/clients/${req.params.id}?error=1`);
+    volver(res, req.params.id, false);
   }
 });
 
-router.post("/:id/products/add", async (req, res) => {
-  const { product_id, precio_cliente } = req.body as Record<string, string>;
+/** El stock se ajusta con la función de la base para que quede el movimiento. */
+router.post("/:id/products/update-stock", async (req, res) => {
+  const { product_id, stock, stock_minimo } = req.body as Record<string, string>;
   try {
-    await pool.query(
-      `INSERT INTO client_products (client_id, product_id, precio_cliente, activo, created_at, updated_at)
-       VALUES ($1, $2, $3, true, NOW(), NOW())
-       ON CONFLICT DO NOTHING`,
-      [req.params.id, product_id, parseFloat(precio_cliente) || 0]
-    );
-    res.redirect(`/clients/${req.params.id}?success=1`);
-  } catch (err) {
-    console.error(err);
-    res.redirect(`/clients/${req.params.id}?error=1`);
-  }
-});
-
-router.post("/:id/products/:cpId/remove", async (req, res) => {
-  try {
-    await pool.query("DELETE FROM client_products WHERE id=$1 AND client_id=$2", [
-      req.params.cpId,
-      req.params.id,
+    await pool.query("SELECT tupack_ajustar_stock($1, $2, $3, $4)", [
+      req.params.id, product_id, parseInt(stock, 10) || 0, `Ajuste desde el panel (${req.session.nombre ?? "?"})`,
     ]);
-    res.redirect(`/clients/${req.params.id}?success=1`);
+    if (stock_minimo !== undefined) {
+      await pool.query(
+        "UPDATE business_products SET stock_minimo=$1, updated_at=NOW() WHERE business_id=$2 AND product_id=$3",
+        [stock_minimo === "" ? null : parseInt(stock_minimo, 10), req.params.id, product_id]
+      );
+    }
+    volver(res, req.params.id);
   } catch (err) {
     console.error(err);
-    res.redirect(`/clients/${req.params.id}?error=1`);
+    volver(res, req.params.id, false);
   }
 });
 
-router.post("/:id/phones/add", async (req, res) => {
-  const { phone, label } = req.body as Record<string, string>;
+router.post("/:id/products/:bpId/remove", async (req, res) => {
   try {
-    await pool.query(
-      "INSERT INTO client_phones (client_id, phone, label, activo, created_at) VALUES ($1, $2, $3, true, NOW())",
-      [req.params.id, phone, label]
-    );
-    res.redirect(`/clients/${req.params.id}?success=1`);
+    await pool.query("DELETE FROM business_products WHERE id=$1 AND business_id=$2", [
+      req.params.bpId, req.params.id,
+    ]);
+    volver(res, req.params.id);
   } catch (err) {
     console.error(err);
-    res.redirect(`/clients/${req.params.id}?error=1`);
+    volver(res, req.params.id, false);
+  }
+});
+
+// ── Teléfonos (cuelgan de la sucursal) ──────────────────────────────────────
+router.post("/:id/phones/add", async (req, res) => {
+  const { client_id, phone, label } = req.body as Record<string, string>;
+  try {
+    await pool.query(
+      "INSERT INTO client_phones (client_id, phone, label) VALUES ($1, $2, $3)",
+      [client_id, phone, label || null]
+    );
+    volver(res, req.params.id);
+  } catch (err) {
+    console.error(err);
+    volver(res, req.params.id, false);
   }
 });
 
 router.post("/:id/phones/:phoneId/deactivate", async (req, res) => {
   try {
-    await pool.query("UPDATE client_phones SET activo=false WHERE id=$1 AND client_id=$2", [
-      req.params.phoneId,
-      req.params.id,
-    ]);
-    res.redirect(`/clients/${req.params.id}?success=1`);
+    await pool.query("UPDATE client_phones SET activo=false WHERE id=$1", [req.params.phoneId]);
+    volver(res, req.params.id);
   } catch (err) {
     console.error(err);
-    res.redirect(`/clients/${req.params.id}?error=1`);
+    volver(res, req.params.id, false);
   }
 });
 
 router.post("/:id/deactivate", async (req, res) => {
   try {
-    await pool.query("UPDATE clients SET activo=false, updated_at=NOW() WHERE id=$1", [req.params.id]);
+    await pool.query("UPDATE businesses SET activo=false, updated_at=NOW() WHERE id=$1", [req.params.id]);
     res.redirect("/clients?success=deactivated");
   } catch (err) {
     console.error(err);
     res.redirect("/clients?error=deactivate");
-  }
-});
-
-router.post("/:id/delete", async (req, res) => {
-  try {
-    await pool.query("UPDATE clients SET activo=false, updated_at=NOW() WHERE id=$1", [req.params.id]);
-    res.redirect("/clients?success=deleted");
-  } catch (err) {
-    console.error(err);
-    res.redirect("/clients?error=delete");
   }
 });
 
