@@ -38,8 +38,13 @@ No hay auto-deploy por push:
 bash scripts/deploy.sh
 ```
 
-Empaqueta el HEAD, lo compila en el servidor y actualiza el servicio
-`personal_tupack-app` con la imagen `easypanel/personal/tupack-app:latest`.
+El panel corre en el VPS, en EasyPanel (proyecto `personal`, servicio
+`tupack-app`): https://personal-tupack-app.zampow.easypanel.host
+
+EasyPanel construye la imagen desde este repo (rama `main`) con el Dockerfile
+de la raíz, así que deployar es pushear y apretar Deploy — o dejar que el
+script lo dispare, si tenés la URL del Deployment Trigger en
+`TUPACK_DEPLOY_HOOK`.
 
 Las variables de entorno (`TUPACK_DATABASE_URL`, `SESSION_SECRET`) viven en la
 configuración del servicio en EasyPanel. Ojo: si se deploya desde la UI de

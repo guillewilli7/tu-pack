@@ -1,35 +1,35 @@
 #!/bin/bash
-# Deploy del panel al VPS (EasyPanel, Docker Swarm). No hay auto-deploy por push:
-# esto arma el tarball del HEAD, lo compila en el servidor y actualiza el servicio.
+# Deploy del panel. EasyPanel construye la imagen desde este repo (rama main)
+# con el Dockerfile de la raíz, así que deployar es: pushear y avisarle.
 #
 #   bash scripts/deploy.sh
 #
-# Variables (con estos valores por defecto):
-#   VPS=root@173.212.192.54
-#   IMAGEN=easypanel/personal/tupack-app:latest
-#   SERVICIO=personal_tupack-app
+# El aviso se puede automatizar con el "Deployment Trigger" del servicio
+# (Deployments → Deployment Trigger). Si guardás esa URL en TUPACK_DEPLOY_HOOK,
+# el script la llama solo; si no, hay que apretar Deploy en el panel.
 set -euo pipefail
 
-VPS="${VPS:-root@173.212.192.54}"
-IMAGEN="${IMAGEN:-easypanel/personal/tupack-app:latest}"
-SERVICIO="${SERVICIO:-personal_tupack-app}"
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+URL="${TUPACK_URL:-https://personal-tupack-app.zampow.easypanel.host}"
 
-echo "== Empaquetando HEAD =="
-git -C "$REPO" archive --format=tar.gz HEAD -o /tmp/tupack.tar.gz
-scp -q /tmp/tupack.tar.gz "$VPS:/tmp/tupack.tar.gz"
+echo "== Subiendo main =="
+git -C "$REPO" push origin main
 
-echo "== Build en el servidor =="
-ssh "$VPS" "rm -rf /tmp/tupack-build && mkdir -p /tmp/tupack-build \
-  && tar xzf /tmp/tupack.tar.gz -C /tmp/tupack-build \
-  && cd /tmp/tupack-build && docker build -q -t '$IMAGEN' ."
-
-echo "== Actualizando el servicio =="
-if ssh "$VPS" "docker service inspect '$SERVICIO' >/dev/null 2>&1"; then
-  ssh "$VPS" "docker service update --force --image '$IMAGEN' '$SERVICIO'" | tail -2
-  echo "Listo."
-else
-  echo "El servicio '$SERVICIO' todavía no existe en EasyPanel."
-  echo "Creá la app una vez desde la UI (imagen $IMAGEN, puerto 3000) y volvé a correr esto."
+if [ -n "${TUPACK_DEPLOY_HOOK:-}" ]; then
+  echo "== Disparando el deploy =="
+  curl -fsS "$TUPACK_DEPLOY_HOOK" >/dev/null && echo "   pedido enviado"
+  echo "== Esperando a que levante =="
+  for _ in $(seq 1 60); do
+    if [ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$URL/login")" = "200" ]; then
+      echo "   $URL responde"
+      exit 0
+    fi
+    sleep 5
+  done
+  echo "   sigue sin responder: revisá los logs en EasyPanel" >&2
   exit 1
+else
+  echo
+  echo "Falta apretar Deploy en EasyPanel:"
+  echo "  https://panel.ninetysix.cloud/projects/personal/app/tupack-app"
 fi
