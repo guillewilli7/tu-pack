@@ -28,3 +28,19 @@ python3 scripts/generar-carga-excel.py "ruta/al/archivo.xlsx" > scripts/migratio
 
 El script imprime en pantalla un resumen: cuántos negocios, sucursales y productos
 salieron, cuántas filas quedaron sin precio y cuáles no se pudieron cargar.
+
+## Deploy
+
+El panel se sirve desde el VPS (EasyPanel, Docker Swarm), no desde Replit.
+No hay auto-deploy por push:
+
+```bash
+bash scripts/deploy.sh
+```
+
+Empaqueta el HEAD, lo compila en el servidor y actualiza el servicio
+`personal_tupack-app` con la imagen `easypanel/personal/tupack-app:latest`.
+
+Las variables de entorno (`TUPACK_DATABASE_URL`, `SESSION_SECRET`) viven en la
+configuración del servicio en EasyPanel. Ojo: si se deploya desde la UI de
+EasyPanel en vez de con este script, las variables se pisan.
