@@ -104,13 +104,27 @@
     <span class="card-title">Sucursales y facturación (<%= branches.length %>)</span>
     <button class="btn btn-primary btn-sm" onclick="document.getElementById('add-branch-modal').classList.add('open')">+ Agregar sucursal</button>
   </div>
-  <div class="card-body">
+  <div class="card-body branch-list">
     <% if (!branches.length) { %>
       <p class="text-muted">Este cliente no tiene sucursales cargadas.</p>
     <% } %>
     <% branches.forEach(function(b, i) { %>
-      <form method="POST" action="/clients/<%= client.id %>/branches/<%= b.id %>/update"
-            style="<%= i ? 'border-top:1px solid var(--border);padding-top:20px;margin-top:20px;' : '' %>">
+      <% var tels = phones.filter(function(t) { return t.client_id === b.id && t.activo; }); %>
+      <details class="branch" <%= branches.length === 1 ? 'open' : '' %>>
+        <summary class="branch-summary">
+          <span class="branch-chevron">▶</span>
+          <span class="branch-name"><%= b.sucursal || 'Sucursal única' %></span>
+          <% if (!b.activo) { %><span class="badge badge-red">Inactiva</span><% } %>
+          <% if (!b.rut) { %><span class="badge badge-yellow">sin facturación</span><% } %>
+          <span class="branch-meta">
+            <%= [b.rut ? 'RUT ' + b.rut : null, b.direccion_entrega,
+                 tels.length ? tels.length + (tels.length === 1 ? ' teléfono' : ' teléfonos') : null]
+                .filter(Boolean).join(' · ') || 'sin datos cargados' %>
+          </span>
+        </summary>
+
+        <div class="branch-body">
+      <form method="POST" action="/clients/<%= client.id %>/branches/<%= b.id %>/update">
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Sucursal</label>
@@ -156,21 +170,22 @@
         </div>
         <div class="flex gap-2 items-center">
           <button type="submit" class="btn btn-primary btn-sm">Guardar sucursal</button>
-          <% var tels = phones.filter(function(t) { return t.client_id === b.id && t.activo; }); %>
           <span class="text-muted">
             Teléfonos: <%= tels.length ? tels.map(function(t) { return t.phone + (t.label ? ' (' + t.label + ')' : ''); }).join(' · ') : 'sin teléfonos' %>
           </span>
         </div>
       </form>
 
-      <div class="inline-form" style="margin-top:10px;">
-        <form method="POST" action="/clients/<%= client.id %>/phones/add" class="inline-form">
-          <input type="hidden" name="client_id" value="<%= b.id %>" />
-          <input class="form-control" name="phone" placeholder="Teléfono" style="width:150px;" required />
-          <input class="form-control" name="label" placeholder="Etiqueta" style="width:130px;" />
-          <button type="submit" class="btn btn-sm btn-secondary">+ Teléfono</button>
-        </form>
-      </div>
+          <div class="inline-form" style="margin-top:14px;">
+            <form method="POST" action="/clients/<%= client.id %>/phones/add" class="inline-form">
+              <input type="hidden" name="client_id" value="<%= b.id %>" />
+              <input class="form-control" name="phone" placeholder="Teléfono" style="width:150px;" required />
+              <input class="form-control" name="label" placeholder="Etiqueta" style="width:130px;" />
+              <button type="submit" class="btn btn-sm btn-secondary">+ Teléfono</button>
+            </form>
+          </div>
+        </div>
+      </details>
     <% }) %>
   </div>
 </div>
