@@ -12,6 +12,7 @@ import ordersRouter from "./routes/orders";
 import clientsRouter from "./routes/clients";
 import productsRouter from "./routes/products";
 import stockRouter from "./routes/stock";
+import cuentasRouter from "./routes/cuentas";
 import { requireAuth } from "./middleware/auth";
 import { logger } from "./lib/logger";
 import { pool } from "./db";
@@ -84,6 +85,7 @@ app.use("/orders", requireAuth, ordersRouter);
 app.use("/clients", requireAuth, clientsRouter);
 app.use("/products", requireAuth, productsRouter);
 app.use("/stock", requireAuth, stockRouter);
+app.use("/cuentas", requireAuth, cuentasRouter);
 
 // Root redirect
 app.get("/", requireAuth, (_req, res) => {

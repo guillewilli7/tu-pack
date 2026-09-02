@@ -21,7 +21,8 @@ router.get("/", async (req, res) => {
               (SELECT count(*) FROM clients c WHERE c.business_id = b.id)            AS sucursales,
               (SELECT count(*) FROM business_products bp WHERE bp.business_id = b.id) AS productos,
               (SELECT count(*) FROM business_products bp
-                WHERE bp.business_id = b.id AND bp.stock <= 0)                        AS sin_stock
+                WHERE bp.business_id = b.id AND bp.stock <= 0)                        AS sin_stock,
+              tupack_saldo(b.id)                                                      AS saldo
          FROM businesses b${filtro}
         ORDER BY b.nombre`,
       params
@@ -73,7 +74,7 @@ router.post("/new", async (req, res) => {
 router.get("/:id", async (req, res) => {
   const { success, error: qErr } = req.query as Record<string, string>;
   try {
-    const [negocio, sucursales, productos, catalogo, ordenes, telefonos] = await Promise.all([
+    const [negocio, sucursales, productos, catalogo, ordenes, telefonos, cuenta] = await Promise.all([
       pool.query("SELECT * FROM businesses WHERE id = $1", [req.params.id]),
       pool.query("SELECT * FROM clients WHERE business_id = $1 ORDER BY sucursal NULLS FIRST, id", [req.params.id]),
       pool.query(
@@ -98,6 +99,16 @@ router.get("/:id", async (req, res) => {
           WHERE c.business_id = $1 ORDER BY ph.id`,
         [req.params.id]
       ),
+      // Estado de cuenta: los movimientos más recientes primero, con el saldo
+      // acumulado hasta cada uno para poder leer la evolución de la deuda.
+      pool.query(
+        `SELECT m.*, SUM(m.monto) OVER (ORDER BY m.fecha, m.id) AS saldo_acumulado
+           FROM account_movements m
+          WHERE m.business_id = $1
+          ORDER BY m.fecha DESC, m.id DESC
+          LIMIT 100`,
+        [req.params.id]
+      ),
     ]);
     if (!negocio.rows.length) return res.redirect("/clients");
 
@@ -108,6 +119,8 @@ router.get("/:id", async (req, res) => {
       allProducts: catalogo.rows,
       orders: ordenes.rows,
       phones: telefonos.rows,
+      movimientos: cuenta.rows,
+      saldo: cuenta.rows.length ? Number(cuenta.rows[0].saldo_acumulado) : 0,
       nombre: req.session.nombre,
       success: success ? "Cambios guardados correctamente." : null,
       error: qErr ? "Error al guardar los cambios. Intentá de nuevo." : null,
@@ -223,6 +236,47 @@ router.post("/:id/products/:bpId/remove", async (req, res) => {
     await pool.query("DELETE FROM business_products WHERE id=$1 AND business_id=$2", [
       req.params.bpId, req.params.id,
     ]);
+    volver(res, req.params.id);
+  } catch (err) {
+    console.error(err);
+    volver(res, req.params.id, false);
+  }
+});
+
+// ── Estado de cuenta ────────────────────────────────────────────────────────
+router.post("/:id/cuenta", async (req, res) => {
+  const { fecha, tipo, descripcion, monto } = req.body as Record<string, string>;
+  const valor = parseFloat(monto);
+  if (!descripcion?.trim() || Number.isNaN(valor) || valor === 0) {
+    return volver(res, req.params.id, false);
+  }
+  try {
+    // Un pago siempre resta y un cargo siempre suma, sin importar cómo venga
+    // escrito el número: así nadie carga un pago en positivo por error.
+    const signo = tipo === "pago" ? -1 : tipo === "cargo" ? 1 : 0;
+    const final = signo === 0 ? valor : signo * Math.abs(valor);
+
+    await pool.query(
+      `INSERT INTO account_movements (business_id, fecha, tipo, descripcion, monto, creado_por)
+       VALUES ($1, COALESCE($2::date, CURRENT_DATE), $3, $4, $5, $6)`,
+      [req.params.id, fecha || null, tipo || "ajuste", descripcion.trim(), final,
+       req.session.nombre ?? null]
+    );
+    volver(res, req.params.id);
+  } catch (err) {
+    console.error(err);
+    volver(res, req.params.id, false);
+  }
+});
+
+/** Solo se borran los movimientos cargados a mano: el de una orden lo maneja
+ *  la propia orden (cambiale el total o cancelala). */
+router.post("/:id/cuenta/:movId/delete", async (req, res) => {
+  try {
+    await pool.query(
+      "DELETE FROM account_movements WHERE id=$1 AND business_id=$2 AND order_id IS NULL",
+      [req.params.movId, req.params.id]
+    );
     volver(res, req.params.id);
   } catch (err) {
     console.error(err);

@@ -219,6 +219,25 @@ router.post("/clients/:id/products", async (req, res) => {
   }
 });
 
+/** Estado de cuenta de un negocio: saldo y últimos movimientos. */
+router.get("/businesses/:id/cuenta", async (req, res) => {
+  try {
+    const [saldo, movimientos] = await Promise.all([
+      pool.query("SELECT tupack_saldo($1) AS saldo", [req.params.id]),
+      pool.query(
+        `SELECT fecha, tipo, descripcion, monto, order_id
+           FROM account_movements WHERE business_id = $1
+          ORDER BY fecha DESC, id DESC LIMIT 50`,
+        [req.params.id]
+      ),
+    ]);
+    res.json({ saldo: Number(saldo.rows[0].saldo), movimientos: movimientos.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error al cargar el estado de cuenta." });
+  }
+});
+
 /**
  * Alta de orden. El descuento de stock lo hace el trigger de la base, así que
  * también aplica si el pedido se inserta por fuera de esta API.

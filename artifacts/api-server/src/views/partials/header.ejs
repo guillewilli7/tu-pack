@@ -204,6 +204,17 @@
     }
     .branch-body { padding: 20px; }
 
+    /* Saldos: el rojo es deuda, el verde saldo a favor. */
+    .saldo { font-variant-numeric: tabular-nums; font-weight: 600; }
+    .saldo-debe   { color: var(--destructive); }
+    .saldo-favor  { color: var(--success); }
+    .saldo-cero   { color: var(--muted-foreground); font-weight: 500; }
+    .saldo-grande { font-family: var(--font-display); font-size: 30px; letter-spacing: -0.5px; }
+    .resumen-cuenta {
+      display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+      padding: 4px 0 18px; border-bottom: 1px solid var(--border); margin-bottom: 18px;
+    }
+
     /* Filter bar */
     .filter-bar { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 20px; }
     .filter-bar .form-group { margin-bottom: 0; }
@@ -276,6 +287,7 @@
     <a href="/clients" class="nav-item <%= page === 'clients' ? 'active' : '' %>">Clientes</a>
     <a href="/products" class="nav-item <%= page === 'products' ? 'active' : '' %>">Productos</a>
     <a href="/stock" class="nav-item <%= page === 'stock' ? 'active' : '' %>">Stock</a>
+    <a href="/cuentas" class="nav-item <%= page === 'cuentas' ? 'active' : '' %>">Cuentas</a>
   </div>
 </nav>
 <div class="main">

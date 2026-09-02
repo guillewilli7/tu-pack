@@ -35,6 +35,20 @@ if [ "${1:-}" = "verificar" ]; then
   exit 0
 fi
 
+# Una sola migración: `bash scripts/migrar.sh 004_estado_cuenta.sql`.
+# Útil para las que agregan cosas sin borrar nada.
+if [[ "${1:-}" == *.sql ]]; then
+  ARCHIVO="$REPO/scripts/migrations/$1"
+  [ -f "$ARCHIVO" ] || { echo "No existe $ARCHIVO" >&2; exit 1; }
+  mkdir -p "$REPO/backups"
+  BACKUP="$REPO/backups/backup-$(date +%Y%m%d-%H%M%S).sql"
+  pg_dump "$TUPACK_DATABASE_URL" > "$BACKUP"
+  echo "Backup: $BACKUP"
+  psql -q -v ON_ERROR_STOP=1 "$TUPACK_DATABASE_URL" -f "$ARCHIVO" 2>&1 | grep -v '^NOTICE' || true
+  echo "Aplicada: $1"
+  exit 0
+fi
+
 echo "== Backup =="
 mkdir -p "$REPO/backups"
 BACKUP="$REPO/backups/backup-$(date +%Y%m%d-%H%M%S).sql"

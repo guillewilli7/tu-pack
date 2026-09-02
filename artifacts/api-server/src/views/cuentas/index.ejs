@@ -1,0 +1,83 @@
+<%- include('../partials/header', { title: 'Cuentas', page: 'cuentas', nombre }) %>
+
+<% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+<div class="grid-2 section">
+  <div class="card">
+    <div class="card-body">
+      <div class="text-muted">Por cobrar</div>
+      <div class="saldo saldo-grande saldo-debe">$<%= Number(totales.por_cobrar).toFixed(2) %></div>
+      <div class="text-muted"><%= totales.deudores %> <%= Number(totales.deudores) === 1 ? 'cliente adeuda' : 'clientes adeudan' %></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <div class="text-muted">Saldo a favor de clientes</div>
+      <div class="saldo saldo-grande saldo-favor">$<%= Math.abs(Number(totales.a_favor)).toFixed(2) %></div>
+      <div class="text-muted">Pagos por encima de lo facturado</div>
+    </div>
+  </div>
+</div>
+
+<div class="card section">
+  <div class="card-header"><span class="card-title">Filtros</span></div>
+  <div class="card-body">
+    <form method="GET" action="/cuentas">
+      <div class="filter-bar">
+        <div class="form-group" style="flex:1;min-width:220px;">
+          <label class="form-label">Cliente</label>
+          <input type="text" name="q" class="form-control" value="<%= q %>" placeholder="Buscar cliente..." />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Mostrar</label>
+          <select name="filtro" class="form-control">
+            <option value="deudores" <%= filtro === 'deudores' ? 'selected' : '' %>>Con deuda</option>
+            <option value="a_favor"  <%= filtro === 'a_favor'  ? 'selected' : '' %>>Con saldo a favor</option>
+            <option value="en_cero"  <%= filtro === 'en_cero'  ? 'selected' : '' %>>Al día</option>
+            <option value="todos"    <%= filtro === 'todos'    ? 'selected' : '' %>>Todos</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <button type="submit" class="btn btn-primary">Filtrar</button>
+          <a href="/cuentas" class="btn btn-secondary" style="margin-left:8px;">Limpiar</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><span class="card-title">Clientes (<%= cuentas.length %>)</span></div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Cliente</th>
+          <th style="width:150px;">Último movimiento</th>
+          <th style="width:120px;">Movimientos</th>
+          <th style="width:150px;">Saldo</th>
+          <th style="width:90px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (!cuentas.length) { %>
+          <tr><td colspan="5" class="table-empty">No hay clientes que cumplan el filtro.</td></tr>
+        <% } %>
+        <% cuentas.forEach(function(c) { %>
+          <% var saldo = Number(c.saldo); %>
+          <tr style="cursor:pointer;" onclick="window.location='/clients/<%= c.id %>#cuenta'">
+            <td><strong><%= c.nombre %></strong></td>
+            <td class="text-muted"><%= c.ultimo_movimiento ? new Date(c.ultimo_movimiento).toLocaleDateString('es-UY') : '—' %></td>
+            <td class="text-muted"><%= c.movimientos %></td>
+            <td class="saldo <%= saldo > 0 ? 'saldo-debe' : (saldo < 0 ? 'saldo-favor' : 'saldo-cero') %>">
+              $<%= saldo.toFixed(2) %>
+            </td>
+            <td onclick="event.stopPropagation()"><a href="/clients/<%= c.id %>#cuenta" class="btn btn-sm btn-secondary">Ver</a></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

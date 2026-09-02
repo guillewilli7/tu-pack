@@ -36,14 +36,15 @@
           <th>Cliente</th>
           <th style="width:110px;">Sucursales</th>
           <th style="width:110px;">Productos</th>
-          <th style="width:150px;">Sin stock</th>
+          <th style="width:140px;">Sin stock</th>
+          <th style="width:130px;">Saldo</th>
           <th style="width:100px;">Estado</th>
           <th style="width:70px;"></th>
         </tr>
       </thead>
       <tbody>
         <% if (!clients.length) { %>
-          <tr><td colspan="6" class="table-empty">No se encontraron clientes.</td></tr>
+          <tr><td colspan="7" class="table-empty">No se encontraron clientes.</td></tr>
         <% } %>
         <% clients.forEach(function(c) { %>
           <tr style="cursor:pointer;" onclick="window.location='/clients/<%= c.id %>'">
@@ -59,6 +60,8 @@
                 <span class="text-muted">—</span>
               <% } %>
             </td>
+            <% var saldo = Number(c.saldo || 0); %>
+            <td class="saldo <%= saldo > 0 ? 'saldo-debe' : (saldo < 0 ? 'saldo-favor' : 'saldo-cero') %>">$<%= saldo.toFixed(2) %></td>
             <td><span class="badge <%= c.activo ? 'badge-green' : 'badge-red' %>"><%= c.activo ? 'Activo' : 'Inactivo' %></span></td>
             <td onclick="event.stopPropagation()"><a href="/clients/<%= c.id %>" class="btn btn-sm btn-secondary">Ver</a></td>
           </tr>
