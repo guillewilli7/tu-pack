@@ -35,6 +35,12 @@ if [ "${1:-}" = "verificar" ]; then
   exit 0
 fi
 
+# Carga de los saldos iniciales que venían del Memory G2000.
+if [ "${1:-}" = "cargar-saldos" ]; then
+  shift
+  exec python3 "$REPO/scripts/cargar-saldos.py" "$@"
+fi
+
 # Una sola migración: `bash scripts/migrar.sh 004_estado_cuenta.sql`.
 # Útil para las que agregan cosas sin borrar nada.
 if [[ "${1:-}" == *.sql ]]; then
