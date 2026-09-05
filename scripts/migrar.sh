@@ -35,6 +35,12 @@ if [ "${1:-}" = "verificar" ]; then
   exit 0
 fi
 
+# Reorganización de clientes (separar DESMADRE, altas nuevas, saldos en USD).
+if [ "${1:-}" = "reorganizar" ]; then
+  shift
+  exec python3 "$REPO/scripts/reorganizar-clientes.py" "$@"
+fi
+
 # Carga de los saldos iniciales que venían del Memory G2000.
 if [ "${1:-}" = "cargar-saldos" ]; then
   shift

@@ -61,7 +61,13 @@
               <% } %>
             </td>
             <% var saldo = Number(c.saldo || 0); %>
-            <td class="saldo <%= saldo > 0 ? 'saldo-debe' : (saldo < 0 ? 'saldo-favor' : 'saldo-cero') %>">$<%= saldo.toFixed(2) %></td>
+            <% var saldoUsd = Number(c.saldo_usd || 0); %>
+            <td class="saldo <%= saldo > 0 ? 'saldo-debe' : (saldo < 0 ? 'saldo-favor' : 'saldo-cero') %>">
+              $<%= saldo.toFixed(2) %>
+              <% if (saldoUsd !== 0) { %>
+                <div class="saldo <%= saldoUsd > 0 ? 'saldo-debe' : 'saldo-favor' %>" style="font-size:12px;">U$S <%= saldoUsd.toFixed(2) %></div>
+              <% } %>
+            </td>
             <td><span class="badge <%= c.activo ? 'badge-green' : 'badge-red' %>"><%= c.activo ? 'Activo' : 'Inactivo' %></span></td>
             <td onclick="event.stopPropagation()"><a href="/clients/<%= c.id %>" class="btn btn-sm btn-secondary">Ver</a></td>
           </tr>

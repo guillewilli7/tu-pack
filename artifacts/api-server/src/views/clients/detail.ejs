@@ -40,9 +40,24 @@
 <!-- ── Productos y stock ────────────────────────────────────────────────── -->
 <div class="card section">
   <div class="card-header">
-    <span class="card-title">Productos y stock (<%= clientProducts.length %>)</span>
+    <span class="card-title">
+      Productos y stock (<%= clientProducts.length %>)
+      <% if (client.deposito_nombre) { %>
+        <span class="badge badge-blue" style="margin-left:8px;">stock de <%= client.deposito_nombre %></span>
+      <% } else if (Number(client.locales) > 0) { %>
+        <span class="badge badge-blue" style="margin-left:8px;">compartido con <%= client.locales %> locales</span>
+      <% } %>
+    </span>
     <button class="btn btn-primary btn-sm" onclick="document.getElementById('add-product-modal').classList.add('open')">+ Agregar producto</button>
   </div>
+  <% if (client.deposito_nombre) { %>
+    <div class="card-body" style="padding-bottom:0;">
+      <p class="text-muted">
+        Este local comparte el depósito de <strong><%= client.deposito_nombre %></strong>:
+        lo que se edite acá cambia el stock para todos los locales de la marca.
+      </p>
+    </div>
+  <% } %>
   <div class="table-wrap">
     <table>
       <thead>
@@ -199,15 +214,22 @@
   <div class="card-body">
     <div class="resumen-cuenta">
       <div>
-        <div class="text-muted">Saldo actual</div>
+        <div class="text-muted">Saldo en pesos</div>
         <div class="saldo saldo-grande <%= saldo > 0 ? 'saldo-debe' : (saldo < 0 ? 'saldo-favor' : 'saldo-cero') %>">
           $<%= Number(saldo).toFixed(2) %>
         </div>
       </div>
-      <div class="text-muted" style="max-width:320px;">
-        <% if (saldo > 0) { %>El cliente adeuda este importe.
-        <% } else if (saldo < 0) { %>El cliente tiene saldo a favor.
+      <div>
+        <div class="text-muted">Saldo en dólares</div>
+        <div class="saldo saldo-grande <%= saldoUsd > 0 ? 'saldo-debe' : (saldoUsd < 0 ? 'saldo-favor' : 'saldo-cero') %>">
+          U$S <%= Number(saldoUsd).toFixed(2) %>
+        </div>
+      </div>
+      <div class="text-muted" style="max-width:300px;">
+        <% if (saldo > 0 || saldoUsd > 0) { %>El cliente adeuda estos importes.
+        <% } else if (saldo < 0 || saldoUsd < 0) { %>El cliente tiene saldo a favor.
         <% } else { %>La cuenta está al día.<% } %>
+        Cada moneda lleva su cuenta por separado.
       </div>
     </div>
 
@@ -231,6 +253,13 @@
                  placeholder="Ej: transferencia BROU, nota de crédito, flete" />
         </div>
         <div class="form-group">
+          <label class="form-label">Moneda</label>
+          <select name="moneda" class="form-control" style="width:110px;">
+            <option value="UYU">Pesos</option>
+            <option value="USD">Dólares</option>
+          </select>
+        </div>
+        <div class="form-group">
           <label class="form-label">Monto</label>
           <input type="number" step="0.01" name="monto" class="form-control" required style="width:130px;" placeholder="0.00" />
         </div>
@@ -252,8 +281,8 @@
           <th style="width:110px;">Fecha</th>
           <th style="width:110px;">Tipo</th>
           <th>Descripción</th>
-          <th style="width:130px;">Monto</th>
-          <th style="width:130px;">Saldo</th>
+          <th style="width:150px;">Monto</th>
+          <th style="width:140px;">Saldo</th>
           <th style="width:80px;"></th>
         </tr>
       </thead>
@@ -280,9 +309,11 @@
               <% } %>
             </td>
             <td class="saldo <%= monto > 0 ? 'saldo-debe' : 'saldo-favor' %>">
-              <%= monto > 0 ? '+' : '' %><%= monto.toFixed(2) %>
+              <%= m.moneda === 'USD' ? 'U$S ' : '$' %><%= monto > 0 ? '+' : '' %><%= monto.toFixed(2) %>
             </td>
-            <td class="saldo text-muted"><%= Number(m.saldo_acumulado).toFixed(2) %></td>
+            <td class="saldo text-muted">
+              <%= m.moneda === 'USD' ? 'U$S ' : '$' %><%= Number(m.saldo_acumulado).toFixed(2) %>
+            </td>
             <td>
               <% if (!m.order_id) { %>
                 <form method="POST" action="/clients/<%= client.id %>/cuenta/<%= m.id %>/delete" data-desc="<%= m.descripcion %>">

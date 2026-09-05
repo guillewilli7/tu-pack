@@ -8,6 +8,9 @@
       <div class="text-muted">Por cobrar</div>
       <div class="saldo saldo-grande saldo-debe">$<%= Number(totales.por_cobrar).toFixed(2) %></div>
       <div class="text-muted"><%= totales.deudores %> <%= Number(totales.deudores) === 1 ? 'cliente adeuda' : 'clientes adeudan' %></div>
+      <% if (Number(totales.por_cobrar_usd) !== 0) { %>
+        <div class="saldo saldo-debe" style="margin-top:6px;">+ U$S <%= Number(totales.por_cobrar_usd).toFixed(2) %></div>
+      <% } %>
     </div>
   </div>
   <div class="card">
@@ -55,7 +58,7 @@
           <th>Cliente</th>
           <th style="width:150px;">Último movimiento</th>
           <th style="width:120px;">Movimientos</th>
-          <th style="width:150px;">Saldo</th>
+          <th style="width:160px;">Saldo</th>
           <th style="width:90px;"></th>
         </tr>
       </thead>
@@ -69,8 +72,12 @@
             <td><strong><%= c.nombre %></strong></td>
             <td class="text-muted"><%= c.ultimo_movimiento ? new Date(c.ultimo_movimiento).toLocaleDateString('es-UY') : '—' %></td>
             <td class="text-muted"><%= c.movimientos %></td>
+            <% var saldoUsd = Number(c.saldo_usd || 0); %>
             <td class="saldo <%= saldo > 0 ? 'saldo-debe' : (saldo < 0 ? 'saldo-favor' : 'saldo-cero') %>">
               $<%= saldo.toFixed(2) %>
+              <% if (saldoUsd !== 0) { %>
+                <div class="saldo <%= saldoUsd > 0 ? 'saldo-debe' : 'saldo-favor' %>" style="font-size:12px;">U$S <%= saldoUsd.toFixed(2) %></div>
+              <% } %>
             </td>
             <td onclick="event.stopPropagation()"><a href="/clients/<%= c.id %>#cuenta" class="btn btn-sm btn-secondary">Ver</a></td>
           </tr>

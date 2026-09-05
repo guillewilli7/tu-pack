@@ -21,8 +21,9 @@ router.get("/", async (req, res) => {
               (SELECT count(*) FROM clients c WHERE c.business_id = b.id)            AS sucursales,
               (SELECT count(*) FROM business_products bp WHERE bp.business_id = b.id) AS productos,
               (SELECT count(*) FROM business_products bp
-                WHERE bp.business_id = b.id AND bp.stock <= 0)                        AS sin_stock,
-              tupack_saldo(b.id)                                                      AS saldo
+                WHERE bp.business_id = tupack_stock_owner(b.id) AND bp.stock <= 0)     AS sin_stock,
+              tupack_saldo(b.id, 'UYU')                                               AS saldo,
+              tupack_saldo(b.id, 'USD')                                               AS saldo_usd
          FROM businesses b${filtro}
         ORDER BY b.nombre`,
       params
@@ -74,15 +75,23 @@ router.post("/new", async (req, res) => {
 router.get("/:id", async (req, res) => {
   const { success, error: qErr } = req.query as Record<string, string>;
   try {
-    const [negocio, sucursales, productos, catalogo, ordenes, telefonos, cuenta] = await Promise.all([
-      pool.query("SELECT * FROM businesses WHERE id = $1", [req.params.id]),
+    const [negocio, sucursales, productos, catalogo, ordenes, telefonos, cuenta, saldos] =
+      await Promise.all([
+      pool.query(
+        `SELECT b.*, d.id AS deposito_id, d.nombre AS deposito_nombre,
+                (SELECT count(*) FROM businesses o WHERE o.stock_owner_id = b.id AND o.id <> b.id) AS locales
+           FROM businesses b
+           LEFT JOIN businesses d ON d.id = b.stock_owner_id AND d.id <> b.id
+          WHERE b.id = $1`,
+        [req.params.id]
+      ),
       pool.query("SELECT * FROM clients WHERE business_id = $1 ORDER BY sucursal NULLS FIRST, id", [req.params.id]),
       pool.query(
         `SELECT bp.id AS bp_id, bp.precio, bp.stock, bp.stock_minimo, bp.notas, bp.activo,
                 p.id AS product_id, p.nombre, p.codigo_prod, p.unidad
            FROM business_products bp
            JOIN products p ON p.id = bp.product_id
-          WHERE bp.business_id = $1
+          WHERE bp.business_id = tupack_stock_owner($1)
           ORDER BY p.nombre`,
         [req.params.id]
       ),
@@ -102,11 +111,15 @@ router.get("/:id", async (req, res) => {
       // Estado de cuenta: los movimientos más recientes primero, con el saldo
       // acumulado hasta cada uno para poder leer la evolución de la deuda.
       pool.query(
-        `SELECT m.*, SUM(m.monto) OVER (ORDER BY m.fecha, m.id) AS saldo_acumulado
+        `SELECT m.*, SUM(m.monto) OVER (PARTITION BY m.moneda ORDER BY m.fecha, m.id) AS saldo_acumulado
            FROM account_movements m
           WHERE m.business_id = $1
           ORDER BY m.fecha DESC, m.id DESC
           LIMIT 100`,
+        [req.params.id]
+      ),
+      pool.query(
+        `SELECT tupack_saldo($1, 'UYU') AS uyu, tupack_saldo($1, 'USD') AS usd`,
         [req.params.id]
       ),
     ]);
@@ -120,7 +133,8 @@ router.get("/:id", async (req, res) => {
       orders: ordenes.rows,
       phones: telefonos.rows,
       movimientos: cuenta.rows,
-      saldo: cuenta.rows.length ? Number(cuenta.rows[0].saldo_acumulado) : 0,
+      saldo: Number(saldos.rows[0].uyu),
+      saldoUsd: Number(saldos.rows[0].usd),
       nombre: req.session.nombre,
       success: success ? "Cambios guardados correctamente." : null,
       error: qErr ? "Error al guardar los cambios. Intentá de nuevo." : null,
@@ -186,7 +200,7 @@ router.post("/:id/products/add", async (req, res) => {
   try {
     await pool.query(
       `INSERT INTO business_products (business_id, product_id, precio, stock)
-       VALUES ($1, $2, $3, $4)
+       VALUES (tupack_stock_owner($1), $2, $3, $4)
        ON CONFLICT (business_id, product_id) DO NOTHING`,
       [req.params.id, product_id, precio ? parseFloat(precio) : null, parseInt(stock || "0", 10) || 0]
     );
@@ -215,12 +229,15 @@ router.post("/:id/products/update-price", async (req, res) => {
 router.post("/:id/products/update-stock", async (req, res) => {
   const { product_id, stock, stock_minimo } = req.body as Record<string, string>;
   try {
-    await pool.query("SELECT tupack_ajustar_stock($1, $2, $3, $4)", [
-      req.params.id, product_id, parseInt(stock, 10) || 0, `Ajuste desde el panel (${req.session.nombre ?? "?"})`,
-    ]);
+    await pool.query(
+      "SELECT tupack_ajustar_stock(tupack_stock_owner($1), $2, $3, $4)",
+      [req.params.id, product_id, parseInt(stock, 10) || 0,
+       `Ajuste desde el panel (${req.session.nombre ?? "?"})`]
+    );
     if (stock_minimo !== undefined) {
       await pool.query(
-        "UPDATE business_products SET stock_minimo=$1, updated_at=NOW() WHERE business_id=$2 AND product_id=$3",
+        `UPDATE business_products SET stock_minimo=$1, updated_at=NOW()
+          WHERE business_id = tupack_stock_owner($2) AND product_id=$3`,
         [stock_minimo === "" ? null : parseInt(stock_minimo, 10), req.params.id, product_id]
       );
     }
@@ -233,9 +250,9 @@ router.post("/:id/products/update-stock", async (req, res) => {
 
 router.post("/:id/products/:bpId/remove", async (req, res) => {
   try {
-    await pool.query("DELETE FROM business_products WHERE id=$1 AND business_id=$2", [
-      req.params.bpId, req.params.id,
-    ]);
+    await pool.query(
+      "DELETE FROM business_products WHERE id=$1 AND business_id = tupack_stock_owner($2)",
+      [req.params.bpId, req.params.id]);
     volver(res, req.params.id);
   } catch (err) {
     console.error(err);
@@ -245,7 +262,7 @@ router.post("/:id/products/:bpId/remove", async (req, res) => {
 
 // ── Estado de cuenta ────────────────────────────────────────────────────────
 router.post("/:id/cuenta", async (req, res) => {
-  const { fecha, tipo, descripcion, monto } = req.body as Record<string, string>;
+  const { fecha, tipo, descripcion, monto, moneda } = req.body as Record<string, string>;
   const valor = parseFloat(monto);
   if (!descripcion?.trim() || Number.isNaN(valor) || valor === 0) {
     return volver(res, req.params.id, false);
@@ -257,10 +274,11 @@ router.post("/:id/cuenta", async (req, res) => {
     const final = signo === 0 ? valor : signo * Math.abs(valor);
 
     await pool.query(
-      `INSERT INTO account_movements (business_id, fecha, tipo, descripcion, monto, creado_por)
-       VALUES ($1, COALESCE($2::date, CURRENT_DATE), $3, $4, $5, $6)`,
+      `INSERT INTO account_movements
+         (business_id, fecha, tipo, descripcion, monto, moneda, creado_por)
+       VALUES ($1, COALESCE($2::date, CURRENT_DATE), $3, $4, $5, $6, $7)`,
       [req.params.id, fecha || null, tipo || "ajuste", descripcion.trim(), final,
-       req.session.nombre ?? null]
+       moneda === "USD" ? "USD" : "UYU", req.session.nombre ?? null]
     );
     volver(res, req.params.id);
   } catch (err) {

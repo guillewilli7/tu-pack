@@ -31,6 +31,8 @@ router.get("/", async (req, res) => {
       pool.query(
         `SELECT bp.id AS bp_id, bp.stock, bp.stock_minimo, bp.precio, bp.notas,
                 b.id AS business_id, b.nombre AS negocio,
+                (SELECT count(*) FROM businesses o
+                  WHERE o.stock_owner_id = b.id AND o.id <> b.id) AS locales_que_comparten,
                 p.id AS product_id, p.nombre AS producto, p.unidad
            FROM business_products bp
            JOIN businesses b ON b.id = bp.business_id

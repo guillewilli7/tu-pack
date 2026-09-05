@@ -8,9 +8,9 @@ import { pool } from "../db";
 const router = Router();
 
 const FILTROS: Record<string, string> = {
-  deudores: "saldo > 0",
-  a_favor: "saldo < 0",
-  en_cero: "saldo = 0",
+  deudores: "saldo > 0 OR saldo_usd > 0",
+  a_favor: "saldo < 0 OR saldo_usd < 0",
+  en_cero: "saldo = 0 AND saldo_usd = 0",
   todos: "1=1",
 };
 
@@ -28,7 +28,8 @@ router.get("/", async (req, res) => {
 
     const { rows } = await pool.query(
       `WITH cuentas AS (
-         SELECT b.id, b.nombre, tupack_saldo(b.id) AS saldo,
+         SELECT b.id, b.nombre, tupack_saldo(b.id, 'UYU') AS saldo,
+                tupack_saldo(b.id, 'USD') AS saldo_usd,
                 (SELECT max(m.fecha) FROM account_movements m WHERE m.business_id = b.id) AS ultimo_movimiento,
                 (SELECT count(*)    FROM account_movements m WHERE m.business_id = b.id) AS movimientos
            FROM businesses b
@@ -39,10 +40,11 @@ router.get("/", async (req, res) => {
     );
 
     const { rows: totales } = await pool.query(
-      `SELECT COALESCE(SUM(monto) FILTER (WHERE saldo > 0), 0)::numeric(12,2) AS por_cobrar,
-              COALESCE(SUM(monto) FILTER (WHERE saldo < 0), 0)::numeric(12,2) AS a_favor,
-              count(*) FILTER (WHERE saldo > 0) AS deudores
-         FROM (SELECT b.id, tupack_saldo(b.id) AS saldo, tupack_saldo(b.id) AS monto
+      `SELECT COALESCE(SUM(saldo) FILTER (WHERE saldo > 0), 0)::numeric(12,2) AS por_cobrar,
+              COALESCE(SUM(saldo) FILTER (WHERE saldo < 0), 0)::numeric(12,2) AS a_favor,
+              count(*) FILTER (WHERE saldo > 0) AS deudores,
+              COALESCE(SUM(usd) FILTER (WHERE usd > 0), 0)::numeric(12,2) AS por_cobrar_usd
+         FROM (SELECT b.id, tupack_saldo(b.id, 'UYU') AS saldo, tupack_saldo(b.id, 'USD') AS usd
                  FROM businesses b WHERE b.activo = true) x`
     );
 
@@ -57,7 +59,7 @@ router.get("/", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.render("cuentas/index", {
-      cuentas: [], totales: { por_cobrar: 0, a_favor: 0, deudores: 0 },
+      cuentas: [], totales: { por_cobrar: 0, a_favor: 0, deudores: 0, por_cobrar_usd: 0 },
       q: "", filtro: "deudores", nombre: req.session.nombre,
       error: "Error al cargar las cuentas.",
     });

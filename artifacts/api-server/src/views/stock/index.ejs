@@ -54,7 +54,12 @@
         <% filas.forEach(function(f) { %>
           <% var bajoMinimo = f.stock_minimo !== null && f.stock <= f.stock_minimo; %>
           <tr>
-            <td><a href="/clients/<%= f.business_id %>" class="btn-link"><%= f.negocio %></a></td>
+            <td>
+              <a href="/clients/<%= f.business_id %>" class="btn-link"><%= f.negocio %></a>
+              <% if (Number(f.locales_que_comparten) > 0) { %>
+                <div class="text-muted">depósito de <%= f.locales_que_comparten %> locales</div>
+              <% } %>
+            </td>
             <td>
               <strong><%= f.producto %></strong>
               <% if (f.notas) { %><div class="text-muted"><%= f.notas %></div><% } %>

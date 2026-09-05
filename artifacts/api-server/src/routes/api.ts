@@ -116,7 +116,7 @@ router.get("/clients/:id/products", async (req, res) => {
       `SELECT bp.product_id, bp.precio AS precio_cliente, bp.precio, bp.stock,
               p.nombre, p.codigo_prod, p.unidad
          FROM clients c
-         JOIN business_products bp ON bp.business_id = c.business_id
+         JOIN business_products bp ON bp.business_id = tupack_stock_owner(c.business_id)
          JOIN products p ON p.id = bp.product_id
         WHERE c.id = $1 AND bp.activo = true AND p.activo = true
         ORDER BY p.nombre`,
@@ -135,7 +135,7 @@ router.get("/businesses/:id/products", async (req, res) => {
       `SELECT bp.product_id, bp.precio, bp.stock, bp.stock_minimo,
               p.nombre, p.codigo_prod, p.unidad
          FROM business_products bp JOIN products p ON p.id = bp.product_id
-        WHERE bp.business_id = $1 AND bp.activo = true
+        WHERE bp.business_id = tupack_stock_owner($1) AND bp.activo = true
         ORDER BY p.nombre`,
       [req.params.id]
     );
@@ -223,15 +223,22 @@ router.post("/clients/:id/products", async (req, res) => {
 router.get("/businesses/:id/cuenta", async (req, res) => {
   try {
     const [saldo, movimientos] = await Promise.all([
-      pool.query("SELECT tupack_saldo($1) AS saldo", [req.params.id]),
       pool.query(
-        `SELECT fecha, tipo, descripcion, monto, order_id
+        "SELECT tupack_saldo($1,'UYU') AS uyu, tupack_saldo($1,'USD') AS usd",
+        [req.params.id]
+      ),
+      pool.query(
+        `SELECT fecha, tipo, descripcion, monto, moneda, order_id
            FROM account_movements WHERE business_id = $1
           ORDER BY fecha DESC, id DESC LIMIT 50`,
         [req.params.id]
       ),
     ]);
-    res.json({ saldo: Number(saldo.rows[0].saldo), movimientos: movimientos.rows });
+    res.json({
+      saldo: Number(saldo.rows[0].uyu),
+      saldo_usd: Number(saldo.rows[0].usd),
+      movimientos: movimientos.rows,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Error al cargar el estado de cuenta." });
