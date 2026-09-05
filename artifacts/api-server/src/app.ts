@@ -13,7 +13,7 @@ import clientsRouter from "./routes/clients";
 import productsRouter from "./routes/products";
 import stockRouter from "./routes/stock";
 import cuentasRouter from "./routes/cuentas";
-import { requireAuth } from "./middleware/auth";
+import { requireAuth, requireApiAuth } from "./middleware/auth";
 import { logger } from "./lib/logger";
 import { pool } from "./db";
 import "./session.d";
@@ -93,6 +93,7 @@ app.get("/", requireAuth, (_req, res) => {
 });
 
 // Remaining API routes require auth
-app.use("/api", requireAuth, router);
+// La API la usan el panel (con sesión) y el agente de WhatsApp (con API key).
+app.use("/api", requireApiAuth, router);
 
 export default app;

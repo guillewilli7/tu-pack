@@ -219,6 +219,27 @@ router.post("/clients/:id/products", async (req, res) => {
   }
 });
 
+/** Último pedido de una sucursal: con esto el agente resuelve "lo de siempre". */
+router.get("/clients/:id/ultimo-pedido", async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT o.id, o.created_at, o.status, o.total, o.items
+         FROM orders o
+        WHERE o.client_id = $1 AND o.status <> 'cancelado'
+        ORDER BY o.created_at DESC LIMIT 1`,
+      [req.params.id]
+    );
+    if (!rows.length) {
+      res.json({ hay_pedido: false });
+      return;
+    }
+    res.json({ hay_pedido: true, ...rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error al cargar el último pedido." });
+  }
+});
+
 /** Estado de cuenta de un negocio: saldo y últimos movimientos. */
 router.get("/businesses/:id/cuenta", async (req, res) => {
   try {
