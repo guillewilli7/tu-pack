@@ -6,39 +6,39 @@
  * el resto del panel es gris y blanco para que los números se lean.
  */
 :root {
-  --fondo: #f4f6f9;
+  --fondo: #f3f6f8;
   --superficie: #ffffff;
-  --superficie-2: #f8fafc;
-  --borde: #e2e8f0;
-  --borde-fuerte: #cbd5e1;
-  --texto: #0f213a;
-  --texto-suave: #5b6b80;
-  --marca: #1e70b8;
-  --marca-fuerte: #17598f;
-  --marca-suave: #e8f2fb;
-  --navy: #1b3a63;
+  --superficie-2: #f7fafb;
+  --borde: #e3eaee;
+  --borde-fuerte: #c9d6dd;
+  --texto: #0d2430;
+  --texto-suave: #5a7381;
+  --marca: #186c88;
+  --marca-fuerte: #12556c;
+  --marca-suave: #e4f0f5;
+  --navy: #0f4256;
   --ok: #167a5b;
   --ok-suave: #e3f4ec;
   --alerta: #8a5200;
   --alerta-suave: #fdf1df;
   --peligro: #b3261e;
   --peligro-suave: #fdeceb;
-  --sombra: 0 1px 2px rgba(15, 33, 58, .06), 0 1px 3px rgba(15, 33, 58, .04);
+  --sombra: 0 1px 2px rgba(13, 36, 48, .05), 0 4px 16px -6px rgba(13, 36, 48, .10);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --fondo: #0d1420;
-    --superficie: #141d2c;
-    --superficie-2: #1a2537;
-    --borde: #24314a;
-    --borde-fuerte: #33445f;
-    --texto: #e8eef7;
-    --texto-suave: #93a3b8;
-    --marca: #5aa8e8;
-    --marca-fuerte: #7cbdf1;
-    --marca-suave: #16283d;
-    --navy: #0f1c30;
+    --fondo: #0b1519;
+    --superficie: #121f26;
+    --superficie-2: #172830;
+    --borde: #223540;
+    --borde-fuerte: #2f4854;
+    --texto: #e6eef2;
+    --texto-suave: #8fa6b1;
+    --marca: #4fa9c6;
+    --marca-fuerte: #74c1da;
+    --marca-suave: #12303c;
+    --navy: #0b2735;
     --ok: #5cc9a0;
     --ok-suave: #122d26;
     --alerta: #e0a86a;
@@ -83,5 +83,19 @@ body {
 /* Los números de una tabla tienen que alinearse: siempre tabulares. */
 .num { font-variant-numeric: tabular-nums; }
 
+/* El panel entra con un fundido corto: se siente app, no recarga de página. */
+@keyframes aparecer {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+.aparece { animation: aparecer .28s ease-out both; }
+
 ::-webkit-scrollbar { width: 10px; height: 10px; }
+/* El panel entra con un fundido corto: se siente app, no recarga de página. */
+@keyframes aparecer {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+.aparece { animation: aparecer .28s ease-out both; }
+
 ::-webkit-scrollbar-thumb { background: var(--borde-fuerte); border-radius: 8px; border: 3px solid var(--fondo); }

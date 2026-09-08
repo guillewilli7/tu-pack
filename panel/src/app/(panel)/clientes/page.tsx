@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { consultar } from "@/lib/db";
-import { Tarjeta, Tabla, Th, Td, Vacio, Etiqueta, BotonLink, Boton, Titulo, Campo, Selector, Saldo } from "@/componentes/ui";
+import { Tarjeta, Tabla, Th, Td, Vacio, Etiqueta, BotonLink, Boton, Titulo, Campo, Selector, Saldo, Inicial } from "@/componentes/ui";
 
 export const metadata = { title: "Clientes" };
 
@@ -38,7 +38,8 @@ export default async function Clientes({
 
   return (
     <>
-      <Titulo accion={<BotonLink href="/clientes/nuevo" variante="primario">+ Nuevo cliente</BotonLink>}>
+      <Titulo bajada="Cada negocio con sus sucursales, su stock y su cuenta corriente"
+              accion={<BotonLink href="/clientes/nuevo" variante="primario">+ Nuevo cliente</BotonLink>}>
         Clientes
       </Titulo>
 
@@ -71,18 +72,21 @@ export default async function Clientes({
             {filas.map((c) => (
               <tr key={c.id} className="hover:bg-superficie-2 transition">
                 <Td>
-                  <Link href={`/clientes/${c.id}`} className="flex items-center gap-2">
-                    <span className="font-medium">{c.nombre}</span>
-                    {!c.activo && <Etiqueta tono="peligro">Inactivo</Etiqueta>}
+                  <Link href={`/clientes/${c.id}`} className="flex items-center gap-3">
+                    <Inicial nombre={c.nombre} />
+                    <span className="min-w-0 flex items-center gap-2">
+                      <span className="truncate font-medium">{c.nombre}</span>
+                      {!c.activo && <Etiqueta tono="peligro">Inactivo</Etiqueta>}
+                    </span>
                   </Link>
                 </Td>
                 <Td className="text-right num text-texto-suave">{c.sucursales}</Td>
                 <Td className="text-right num text-texto-suave">{c.productos}</Td>
                 <Td>
                   {Number(c.sin_stock) > 0 ? (
-                    <Etiqueta tono="peligro">{c.sin_stock} sin stock</Etiqueta>
+                    <Etiqueta punto tono="peligro">{c.sin_stock} sin stock</Etiqueta>
                   ) : Number(c.productos) > 0 ? (
-                    <Etiqueta tono="ok">Al día</Etiqueta>
+                    <Etiqueta punto tono="ok">Al día</Etiqueta>
                   ) : (
                     <span className="text-texto-suave">—</span>
                   )}

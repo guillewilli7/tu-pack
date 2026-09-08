@@ -1,7 +1,7 @@
 import { consultar, unaFila } from "@/lib/db";
 import { ajustarStock } from "@/acciones/stock";
 import { FilaStock, type FilaStockDatos } from "@/componentes/fila-stock";
-import { Tarjeta, Tabla, Th, Vacio, Titulo, Campo, Boton, BotonLink, Selector } from "@/componentes/ui";
+import { Tarjeta, Tabla, Th, Vacio, Titulo, Campo, Boton, BotonLink, Selector, Indicador } from "@/componentes/ui";
 
 export const metadata = { title: "Stock" };
 
@@ -54,16 +54,18 @@ export default async function Stock({
 
   return (
     <>
-      <Titulo>Stock</Titulo>
+      <Titulo bajada="Todo el depósito en una pantalla, editable en la misma fila">Stock</Titulo>
 
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         {tarjetas.map((t) => (
-          <a key={t.clave} href={`/stock?filtro=${t.clave}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
-             className={`rounded-xl border bg-superficie p-4 transition hover:border-marca
-               ${clave === t.clave ? "border-marca ring-2 ring-marca/15" : "border-borde"}`}>
-            <div className="text-xs text-texto-suave">{t.texto}</div>
-            <div className="font-display text-2xl font-bold num">{t.valor}</div>
-          </a>
+          <div key={t.clave} className={clave === t.clave ? "rounded-2xl ring-2 ring-marca/25" : ""}>
+            <Indicador
+              titulo={t.texto}
+              valor={t.valor}
+              href={`/stock?filtro=${t.clave}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
+              tono={t.clave === "faltante" && t.valor ? "peligro" : t.clave === "bajo" && t.valor ? "alerta" : undefined}
+            />
+          </div>
         ))}
       </div>
 

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { consultar, unaFila } from "@/lib/db";
 import { fecha, pesos } from "@/lib/formato";
-import { Tarjeta, Tabla, Th, Td, Vacio, Titulo, Campo, Boton, BotonLink, Selector, Saldo, Etiqueta } from "@/componentes/ui";
+import { Tarjeta, Tabla, Th, Td, Vacio, Titulo, Campo, Boton, BotonLink, Selector, Saldo, Etiqueta, Indicador, Inicial } from "@/componentes/ui";
 
 export const metadata = { title: "Cuentas" };
 
@@ -53,13 +53,13 @@ export default async function Cuentas({
 
   return (
     <>
-      <Titulo>Cuentas</Titulo>
+      <Titulo bajada="A quién hay que cobrarle, sin entrar cliente por cliente">Cuentas</Titulo>
 
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-        <Panel titulo="Por cobrar" valor={pesos(totales?.por_cobrar)} tono="peligro" />
-        <Panel titulo="Por cobrar (USD)" valor={pesos(totales?.por_cobrar_usd, "USD")} tono="peligro" />
-        <Panel titulo="Saldo a favor" valor={pesos(totales?.a_favor)} tono="ok" />
-        <Panel titulo="Clientes con deuda" valor={String(totales?.deudores ?? 0)} />
+        <Indicador titulo="Por cobrar" valor={pesos(totales?.por_cobrar)} tono="peligro" />
+        <Indicador titulo="Por cobrar (USD)" valor={pesos(totales?.por_cobrar_usd, "USD")} tono="peligro" />
+        <Indicador titulo="Saldo a favor" valor={pesos(totales?.a_favor)} tono="ok" />
+        <Indicador titulo="Clientes con deuda" valor={String(totales?.deudores ?? 0)} />
       </div>
 
       <form className="grid gap-3 sm:grid-cols-[1fr_180px_auto] sm:items-end">
@@ -92,7 +92,10 @@ export default async function Cuentas({
             {cuentas.map((c) => (
               <tr key={c.id} className="hover:bg-superficie-2 transition">
                 <Td>
-                  <Link href={`/clientes/${c.id}`} className="font-medium hover:text-marca">{c.nombre}</Link>
+                  <Link href={`/clientes/${c.id}`} className="flex items-center gap-3">
+                    <Inicial nombre={c.nombre} />
+                    <span className="truncate font-medium">{c.nombre}</span>
+                  </Link>
                 </Td>
                 <Td className="text-right"><Saldo valor={c.saldo} /></Td>
                 <Td className="text-right">
@@ -108,15 +111,5 @@ export default async function Cuentas({
         </Tabla>
       </Tarjeta>
     </>
-  );
-}
-
-function Panel({ titulo, valor, tono }: { titulo: string; valor: string; tono?: "peligro" | "ok" }) {
-  const color = tono === "peligro" ? "text-peligro" : tono === "ok" ? "text-ok" : "";
-  return (
-    <div className="rounded-xl border border-borde bg-superficie p-4">
-      <div className="text-xs text-texto-suave">{titulo}</div>
-      <div className={`font-display text-2xl font-bold num ${color}`}>{valor}</div>
-    </div>
   );
 }

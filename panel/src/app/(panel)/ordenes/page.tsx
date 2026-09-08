@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { listarOrdenes } from "@/lib/consultas";
 import { ESTADOS_ORDEN, fecha, pesos, type EstadoOrden } from "@/lib/formato";
-import { Tarjeta, Tabla, Th, Td, Vacio, Etiqueta, BotonLink, Boton, Titulo, Campo, Selector } from "@/componentes/ui";
+import { Tarjeta, Tabla, Th, Td, Vacio, Etiqueta, BotonLink, Boton, Titulo, Campo, Selector, Inicial } from "@/componentes/ui";
 
 export const metadata = { title: "Órdenes" };
 
@@ -31,7 +31,8 @@ export default async function Ordenes({
 
   return (
     <>
-      <Titulo accion={<BotonLink href="/ordenes/nueva" variante="primario">+ Nueva orden</BotonLink>}>
+      <Titulo bajada="Lo que entró por WhatsApp y lo que cargás a mano"
+              accion={<BotonLink href="/ordenes/nueva" variante="primario">+ Nueva orden</BotonLink>}>
         Órdenes
       </Titulo>
 
@@ -84,14 +85,17 @@ export default async function Ordenes({
                     <Link href={`/ordenes/${o.id}`} className="block">{fecha(o.created_at)}</Link>
                   </Td>
                   <Td>
-                    <Link href={`/ordenes/${o.id}`} className="block">
-                      <span className="font-medium">{o.client_negocio ?? o.negocio ?? "—"}</span>
-                      {o.sucursal && <span className="text-texto-suave"> · {o.sucursal}</span>}
+                    <Link href={`/ordenes/${o.id}`} className="flex items-center gap-3">
+                      <Inicial nombre={o.client_negocio ?? o.negocio ?? "?"} />
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium">{o.client_negocio ?? o.negocio ?? "—"}</span>
+                        {o.sucursal && <span className="block text-xs text-texto-suave">{o.sucursal}</span>}
+                      </span>
                     </Link>
                   </Td>
                   <Td>
                     <Link href={`/ordenes/${o.id}`} className="flex gap-1.5">
-                      <Etiqueta tono={estado.tono}>{estado.texto}</Etiqueta>
+                      <Etiqueta punto tono={estado.tono}>{estado.texto}</Etiqueta>
                       {o.eliminada && <Etiqueta>Eliminada</Etiqueta>}
                     </Link>
                   </Td>
