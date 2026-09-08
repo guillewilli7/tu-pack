@@ -20,7 +20,6 @@ ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0 NEXT_TELEMETRY_DISABLED=1
 RUN addgroup -g 1001 -S nodejs && adduser -S tupack -u 1001
 COPY --from=build --chown=tupack:nodejs /app/.next/standalone ./
 COPY --from=build --chown=tupack:nodejs /app/.next/static ./.next/static
-COPY --from=build --chown=tupack:nodejs /app/public ./public
 USER tupack
 EXPOSE 3000
 CMD ["node", "server.js"]
