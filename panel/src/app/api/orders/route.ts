@@ -1,4 +1,4 @@
-import { conAuth, ErrorHttp, exigirPropiedad, telefonoDe } from "@/lib/api";
+import { conAuth } from "@/lib/api";
 import { consultar, unaFila } from "@/lib/db";
 
 /**
@@ -11,12 +11,6 @@ export const POST = conAuth(async (request) => {
     client_id?: number; business_id?: number; negocio?: string; phone?: string;
     status?: string; items?: unknown; total?: number | string; notas?: string;
   };
-
-  // Nadie carga un pedido a nombre de otro: si escribe un WhatsApp, la
-  // sucursal tiene que ser suya.
-  if (b.client_id) await exigirPropiedad(request, { clientId: Number(b.client_id) });
-  else if (b.business_id) await exigirPropiedad(request, { businessId: Number(b.business_id) });
-  else if (telefonoDe(request)) throw new ErrorHttp(403, "Falta la sucursal del pedido.");
 
   let negocioId = b.business_id ?? null;
   if (!negocioId && b.client_id) {

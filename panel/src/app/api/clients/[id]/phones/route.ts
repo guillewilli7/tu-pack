@@ -1,14 +1,12 @@
-import { conAuth, exigirPropiedad, idDe } from "@/lib/api";
+import { conAuth, idDe } from "@/lib/api";
 import { consultar } from "@/lib/db";
 
-export const GET = conAuth(async (request, ctx: { params: Promise<{ id: string }> }) => {
-  const id = await idDe(ctx);
-  await exigirPropiedad(request, { clientId: id });
-  return consultar(
+export const GET = conAuth(async (_request, ctx: { params: Promise<{ id: string }> }) =>
+  consultar(
     "SELECT phone, label FROM client_phones WHERE client_id = $1 AND activo ORDER BY id",
-    [id]
-  );
-});
+    [await idDe(ctx)]
+  )
+);
 
 export const POST = conAuth(async (request, ctx: { params: Promise<{ id: string }> }) => {
   const { phone, label } = (await request.json()) as { phone?: string; label?: string };
