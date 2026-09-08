@@ -50,3 +50,5 @@ Thumbs.db
 
 # Backups de la base (datos reales, nunca al repo)
 backups/
+panel/node_modules
+panel/.next
