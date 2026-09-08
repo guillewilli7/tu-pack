@@ -12,7 +12,7 @@ export default async function Inicio() {
   const [numeros, dias, ultimas, deudores] = await Promise.all([
     unaFila<{
       pendientes: number; en_proceso: number; ordenes_mes: number; vendido_mes: string;
-      por_cobrar: string; deudores: number; sin_stock: number;
+      por_cobrar: string; deudores: number; sin_stock: number; bajo_minimo: number;
     }>(
       `SELECT
          (SELECT count(*) FROM orders WHERE NOT eliminada AND status = 'pendiente')::int  AS pendientes,
@@ -29,7 +29,11 @@ export default async function Inicio() {
            WHERE s > 0)::int                                                              AS deudores,
          (SELECT count(*) FROM business_products bp
             JOIN businesses b ON b.id = bp.business_id
-           WHERE bp.activo AND b.activo AND bp.stock <= 0)::int                           AS sin_stock`
+           WHERE bp.activo AND b.activo AND bp.stock <= 0)::int                           AS sin_stock,
+         (SELECT count(*) FROM business_products bp
+            JOIN businesses b ON b.id = bp.business_id
+           WHERE bp.activo AND b.activo AND bp.stock > 0
+             AND bp.stock_minimo IS NOT NULL AND bp.stock <= bp.stock_minimo)::int        AS bajo_minimo`
     ),
     consultar<Dia>(
       `SELECT to_char(d.dia, 'YYYY-MM-DD') AS dia,
@@ -68,7 +72,7 @@ export default async function Inicio() {
         Resumen
       </Titulo>
 
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
         <Indicador
           titulo="Órdenes pendientes" href="/ordenes?estado=pendiente"
           valor={numeros?.pendientes ?? 0}
@@ -88,10 +92,16 @@ export default async function Inicio() {
           tono="ok"
         />
         <Indicador
-          titulo="Productos sin stock" href="/stock?filtro=faltante"
+          titulo="Sin stock" href="/stock?filtro=faltante"
           valor={numeros?.sin_stock ?? 0}
-          detalle="en el depósito"
+          detalle="productos en cero"
           tono={numeros?.sin_stock ? "peligro" : undefined}
+        />
+        <Indicador
+          titulo="Por reponer" href="/stock?filtro=bajo"
+          valor={numeros?.bajo_minimo ?? 0}
+          detalle="bajo el mínimo"
+          tono={numeros?.bajo_minimo ? "alerta" : undefined}
         />
       </div>
 
