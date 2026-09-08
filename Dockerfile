@@ -15,10 +15,13 @@ COPY lib/api-spec/package.json        ./lib/api-spec/
 COPY lib/api-zod/package.json         ./lib/api-zod/
 COPY lib/db/package.json              ./lib/db/
 COPY lib/api-client-react/package.json ./lib/api-client-react/
-# pnpm 11 corta la instalación si un paquete tiene scripts sin aprobar
-# (esbuild). Se desactiva ese corte y se corre el script de esbuild aparte:
-# sin él no baja el binario de la plataforma y el bundle no se puede compilar.
-RUN pnpm install --frozen-lockfile --config.strictDepBuilds=false \
+# La versión de pnpm queda fijada en package.json ("packageManager"): sin eso
+# corepack elige la que venga en la imagen de Node y las viejas no leen
+# `onlyBuiltDependencies` de pnpm-workspace.yaml, así que el install se corta
+# con ERR_PNPM_IGNORED_BUILDS (esbuild). El rebuild explícito baja el binario
+# de la plataforma; sin él el bundle no se puede compilar.
+ENV PNPM_CONFIG_STRICT_DEP_BUILDS=false
+RUN pnpm install --frozen-lockfile \
  && pnpm rebuild esbuild
 
 COPY . .
