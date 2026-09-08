@@ -27,6 +27,7 @@
       <tr><td style="padding:5px 0;color:#5a6b80;">Sucursal</td><td id="ci-sucursal"></td></tr>
       <tr><td style="padding:5px 0;color:#5a6b80;">Dirección entrega</td><td id="ci-direccion"></td></tr>
       <tr><td style="padding:5px 0;color:#5a6b80;">Horario entrega</td><td id="ci-horario"></td></tr>
+      <tr><td style="padding:5px 0;color:#5a6b80;">Saldo en cuenta</td><td id="ci-saldo">—</td></tr>
     </table>
   </div>
 </div>
@@ -58,6 +59,7 @@
           <th style="width:100px;">Cantidad</th>
           <th style="width:130px;">Precio unit.</th>
           <th style="width:110px;">Subtotal</th>
+          <th style="width:130px;">Stock</th>
           <th style="width:50px;"></th>
         </tr>
       </thead>
@@ -79,6 +81,8 @@
         <textarea id="notas" class="form-control" rows="3" placeholder="Notas adicionales…" style="resize:vertical;"></textarea>
       </div>
     </div>
+    <div id="saldo-preview" class="text-muted" style="margin-top:14px;font-size:13px;"></div>
+    <div id="stock-warning" class="alert alert-warning" style="display:none;margin-top:14px;"></div>
     <div style="margin-top:20px;">
       <button type="button" id="confirm-btn" class="btn btn-primary" style="min-width:160px;">Confirmar orden</button>
     </div>
@@ -88,8 +92,11 @@
 <script>
 (function () {
   var clientId = null;
+  var businessId = null;
   var clientProducts = [];
   var lines = [];
+  var saldoUyu = null;
+  var saldoUsd = 0;
 
   // ── Autocomplete ──────────────────────────────────────────────
   var searchInput = document.getElementById('client-search');
@@ -136,6 +143,7 @@
 
   function selectClient(c) {
     clientId = c.id;
+    businessId = c.business_id || null;
     searchInput.value = c.negocio + (c.sucursal ? ' — ' + c.sucursal : '');
     document.getElementById('client-id').value = c.id;
     hideDropdown();
@@ -156,10 +164,34 @@
     document.getElementById('ci-sucursal').textContent = c.sucursal || '—';
     document.getElementById('ci-direccion').textContent = c.direccion_entrega || '—';
     document.getElementById('ci-horario').textContent = c.horario_entrega || '—';
+    loadSaldo(businessId);
     document.getElementById('client-info-card').style.display = '';
     document.getElementById('phone-card').style.display = '';
     document.getElementById('lines-card').style.display = '';
     document.getElementById('totals-card').style.display = '';
+  }
+
+  // ── Saldo en cuenta ───────────────────────────────────────────
+  function money(n) {
+    return '$' + Number(n || 0).toLocaleString('es-UY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function loadSaldo(bid) {
+    saldoUyu = null; saldoUsd = 0;
+    var cell = document.getElementById('ci-saldo');
+    cell.textContent = '—';
+    if (!bid) { recalcTotal(); return; }
+    fetch('/api/businesses/' + bid + '/cuenta')
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        saldoUyu = Number(d.saldo) || 0;
+        saldoUsd = Number(d.saldo_usd) || 0;
+        var txt = money(saldoUyu);
+        if (saldoUsd) txt += '  ·  US$ ' + Number(saldoUsd).toFixed(2);
+        cell.innerHTML = '<strong>' + txt + '</strong>';
+        recalcTotal();
+      })
+      .catch(function () { recalcTotal(); });
   }
 
   // ── Phones ────────────────────────────────────────────────────
@@ -230,6 +262,7 @@
       '<td><input type="number" class="form-control qty-input" data-idx="' + idx + '" min="0" step="1" value="0" style="width:100%;text-align:right;" /></td>' +
       '<td><input type="number" class="form-control price-input" data-idx="' + idx + '" min="0" step="0.01" value="0.00" style="width:100%;text-align:right;" /></td>' +
       '<td class="subtotal-cell" data-idx="' + idx + '" style="text-align:right;padding-right:8px;font-weight:500;">$0.00</td>' +
+      '<td class="stock-cell" data-idx="' + idx + '" style="font-size:13px;color:#5a6b80;">—</td>' +
       '<td style="text-align:center;"><button type="button" class="btn btn-sm btn-danger remove-btn" data-idx="' + idx + '">✕</button></td>';
     linesBody.appendChild(tr);
     bindLine(tr, idx);
@@ -238,8 +271,8 @@
   function buildProductSelect(idx) {
     var opts = '<option value="">— Seleccionar producto —</option>';
     clientProducts.forEach(function (p) {
-      opts += '<option value="' + p.product_id + '" data-precio="' + (p.precio_cliente || 0) + '" data-nombre="' + esc(p.nombre) + '" data-codigo="' + esc(p.codigo_prod || '') + '">' +
-        esc(p.nombre) + (p.codigo_prod ? ' (' + esc(p.codigo_prod) + ')' : '') + '</option>';
+      opts += '<option value="' + p.product_id + '" data-precio="' + (p.precio_cliente || 0) + '" data-stock="' + (p.stock || 0) + '" data-nombre="' + esc(p.nombre) + '" data-codigo="' + esc(p.codigo_prod || '') + '">' +
+        esc(p.nombre) + (p.codigo_prod ? ' (' + esc(p.codigo_prod) + ')' : '') + '  ·  stock ' + (p.stock || 0) + '</option>';
     });
     return '<select class="form-control product-select" data-idx="' + idx + '" style="width:100%;">' + opts + '</select>';
   }
@@ -252,9 +285,10 @@
         var opt = document.createElement('option');
         opt.value = p.product_id;
         opt.dataset.precio = p.precio_cliente || 0;
+        opt.dataset.stock = p.stock || 0;
         opt.dataset.nombre = p.nombre;
         opt.dataset.codigo = p.codigo_prod || '';
-        opt.textContent = p.nombre + (p.codigo_prod ? ' (' + p.codigo_prod + ')' : '');
+        opt.textContent = p.nombre + (p.codigo_prod ? ' (' + p.codigo_prod + ')' : '') + '  ·  stock ' + (p.stock || 0);
         if (String(p.product_id) === String(current)) opt.selected = true;
         sel.appendChild(opt);
       });
@@ -272,6 +306,7 @@
       lines[idx].product_id = sel.value || null;
       lines[idx].nombre_catalogo = opt ? opt.dataset.nombre : '';
       lines[idx].codigo_prod = opt ? opt.dataset.codigo : '';
+      lines[idx].stock = opt && opt.dataset.stock !== undefined ? Number(opt.dataset.stock) : null;
       if (opt && opt.dataset.precio) {
         priceInput.value = parseFloat(opt.dataset.precio).toFixed(2);
         lines[idx].precio_unitario = parseFloat(opt.dataset.precio);
@@ -302,14 +337,47 @@
     var sub = qty * price;
     if (lines[idx]) lines[idx].subtotal = sub;
     var cell = tr.querySelector('.subtotal-cell');
-    if (cell) cell.textContent = '$' + sub.toFixed(2);
+    if (cell) cell.textContent = money(sub);
+    pintarStock(idx, tr);
     recalcTotal();
+  }
+
+  function pintarStock(idx, tr) {
+    var cell = tr.querySelector('.stock-cell');
+    if (!cell) return;
+    var l = lines[idx];
+    if (!l || l.stock === null || l.stock === undefined) { cell.textContent = '—'; cell.style.color = '#5a6b80'; return; }
+    var queda = l.stock - (l.cantidad || 0);
+    cell.textContent = l.stock + ' → ' + queda;
+    cell.style.color = queda < 0 ? '#c0392b' : '#5a6b80';
+    cell.style.fontWeight = queda < 0 ? '600' : '400';
   }
 
   function recalcTotal() {
     var total = 0;
     lines.forEach(function (l) { if (l) total += (l.subtotal || 0); });
-    document.getElementById('grand-total').textContent = '$' + total.toFixed(2);
+    document.getElementById('grand-total').textContent = money(total);
+
+    // Aviso de faltantes: la orden se registra igual, pero que no sea sorpresa.
+    var faltantes = lines.filter(function (l) {
+      return l && l.product_id && l.cantidad > 0 && l.stock !== null && l.stock !== undefined && l.cantidad > l.stock;
+    });
+    var warn = document.getElementById('stock-warning');
+    if (faltantes.length) {
+      warn.innerHTML = 'Sin stock suficiente en ' + faltantes.length + ' producto(s): ' +
+        faltantes.map(function (l) { return esc(l.nombre_catalogo) + ' (pide ' + l.cantidad + ', hay ' + l.stock + ')'; }).join(', ') +
+        '. La orden se registra igual y el stock queda en negativo.';
+      warn.style.display = '';
+    } else {
+      warn.style.display = 'none';
+    }
+
+    var prev = document.getElementById('saldo-preview');
+    if (saldoUyu === null) { prev.textContent = ''; }
+    else {
+      prev.innerHTML = 'Cuenta corriente: ' + money(saldoUyu) + ' → <strong>' + money(saldoUyu + total) + '</strong> con esta orden.' +
+        (saldoUsd ? ' (además US$ ' + Number(saldoUsd).toFixed(2) + ' sin cambios)' : '');
+    }
   }
 
   // ── Submit ────────────────────────────────────────────────────
