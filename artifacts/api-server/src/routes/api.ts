@@ -272,40 +272,81 @@ router.get("/businesses/:id/cuenta", async (req, res) => {
  *
  * items: [{ product_id | codigo_prod | nombre, cantidad, precio_unitario }]
  */
-router.post("/orders", async (req, res) => {
-  const { client_id, business_id, negocio, phone, status, items, total, notas } = req.body as {
-    client_id?: number; business_id?: number; negocio?: string; phone?: string | null;
-    status?: string; items?: unknown; total?: number; notas?: string;
-  };
+/**
+ * Lo que ve el agente de WhatsApp. El stock es del depósito, no del pedido:
+ * el agente no lo recibe, así no puede contárselo al cliente ni decidir con
+ * él. Si falta algo, la orden entra igual y lo resuelve el equipo.
+ */
+router.get("/agente/productos/:clientId", async (req, res) => {
   try {
-    let negocioId = business_id ?? null;
-    if (!negocioId && client_id) {
-      const { rows } = await pool.query("SELECT business_id FROM clients WHERE id = $1", [client_id]);
-      negocioId = rows[0]?.business_id ?? null;
-    }
-    if (!negocioId && negocio) {
-      const { rows } = await pool.query("SELECT id FROM businesses WHERE nombre ILIKE $1", [negocio]);
-      negocioId = rows[0]?.id ?? null;
-    }
-
     const { rows } = await pool.query(
-      `INSERT INTO orders (business_id, client_id, negocio, phone, status, items, total, raw_data)
-       VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8::jsonb) RETURNING id`,
-      [negocioId, client_id || null, negocio || null, phone || "",
-       status || "pendiente", JSON.stringify(items || []),
-       parseFloat(String(total)) || 0, notas ? JSON.stringify({ notas }) : null]
+      `SELECT bp.product_id, bp.precio, p.nombre, p.codigo_prod, p.unidad
+         FROM clients c
+         JOIN business_products bp ON bp.business_id = tupack_stock_owner(c.business_id)
+         JOIN products p ON p.id = bp.product_id
+        WHERE c.id = $1 AND bp.activo = true AND p.activo = true
+        ORDER BY p.nombre`,
+      [req.params.clientId]
     );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error al cargar productos del cliente." });
+  }
+});
 
-    // Devolvemos cómo quedó el stock: si algo entró en negativo, el que llama
-    // se entera en la misma respuesta.
+/** Alta de pedido para el agente: confirma el número de orden y nada más. */
+router.post("/agente/pedidos", async (req, res) => {
+  try {
+    const id = await altaDeOrden(req.body as CuerpoOrden);
+    res.json({ id, estado: "pendiente" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error al crear la orden." });
+  }
+});
+
+type CuerpoOrden = {
+  client_id?: number; business_id?: number; negocio?: string; phone?: string | null;
+  status?: string; items?: unknown; total?: number; notas?: string;
+};
+
+/** Inserta la orden. El stock y el cargo en cuenta los aplica la base. */
+async function altaDeOrden(b: CuerpoOrden): Promise<number> {
+  let negocioId = b.business_id ?? null;
+  if (!negocioId && b.client_id) {
+    const { rows } = await pool.query("SELECT business_id FROM clients WHERE id = $1", [b.client_id]);
+    negocioId = rows[0]?.business_id ?? null;
+  }
+  if (!negocioId && b.negocio) {
+    const { rows } = await pool.query("SELECT id FROM businesses WHERE nombre ILIKE $1", [b.negocio]);
+    negocioId = rows[0]?.id ?? null;
+  }
+
+  const { rows } = await pool.query(
+    `INSERT INTO orders (business_id, client_id, negocio, phone, status, items, total, raw_data)
+     VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8::jsonb) RETURNING id`,
+    [negocioId, b.client_id || null, b.negocio || null, b.phone || "",
+     b.status || "pendiente", JSON.stringify(b.items || []),
+     parseFloat(String(b.total)) || 0, b.notas ? JSON.stringify({ notas: b.notas }) : null]
+  );
+  return rows[0].id as number;
+}
+
+router.post("/orders", async (req, res) => {
+  try {
+    const id = await altaDeOrden(req.body as CuerpoOrden);
+
+    // Al panel sí le devolvemos cómo quedó el stock: si algo entró en
+    // negativo, el operador se entera en la misma respuesta.
     const { rows: movimientos } = await pool.query(
       `SELECT p.nombre, sm.delta, sm.stock_result
          FROM stock_movements sm JOIN products p ON p.id = sm.product_id
         WHERE sm.order_id = $1 ORDER BY sm.id`,
-      [rows[0].id]
+      [id]
     );
     res.json({
-      id: rows[0].id,
+      id,
       stock: movimientos,
       faltantes: movimientos.filter((m: { stock_result: number }) => m.stock_result < 0),
     });

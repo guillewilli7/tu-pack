@@ -1,45 +1,21 @@
 import { conAuth } from "@/lib/api";
-import { consultar, unaFila } from "@/lib/db";
+import { consultar } from "@/lib/db";
+import { altaDeOrden, type CuerpoOrden } from "@/lib/pedidos";
 
 /**
- * Alta de orden por API: la usa el agente de WhatsApp. Se guarda tal cual
- * viene (la base resuelve los ítems por product_id, código o nombre) y se
- * devuelve cómo quedó el stock, para que el agente pueda avisar faltantes.
+ * Alta de orden por API. Se guarda tal cual viene (la base resuelve los ítems
+ * por product_id, código o nombre) y se devuelve cómo quedó el stock, para que
+ * el panel pueda avisar faltantes.
  */
 export const POST = conAuth(async (request) => {
-  const b = (await request.json()) as {
-    client_id?: number; business_id?: number; negocio?: string; phone?: string;
-    status?: string; items?: unknown; total?: number | string; notas?: string;
-  };
-
-  let negocioId = b.business_id ?? null;
-  if (!negocioId && b.client_id) {
-    const fila = await unaFila<{ business_id: number }>(
-      "SELECT business_id FROM clients WHERE id = $1", [b.client_id]
-    );
-    negocioId = fila?.business_id ?? null;
-  }
-  if (!negocioId && b.negocio) {
-    const fila = await unaFila<{ id: number }>(
-      "SELECT id FROM businesses WHERE nombre ILIKE $1", [b.negocio]
-    );
-    negocioId = fila?.id ?? null;
-  }
-
-  const creada = await unaFila<{ id: number }>(
-    `INSERT INTO orders (business_id, client_id, negocio, phone, status, items, total, raw_data)
-     VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8::jsonb) RETURNING id`,
-    [negocioId, b.client_id ?? null, b.negocio ?? null, b.phone ?? "",
-     b.status || "pendiente", JSON.stringify(b.items ?? []),
-     parseFloat(String(b.total)) || 0, b.notas ? JSON.stringify({ notas: b.notas }) : null]
-  );
+  const id = await altaDeOrden((await request.json()) as CuerpoOrden);
 
   const stock = await consultar<{ nombre: string; delta: number; stock_result: number }>(
     `SELECT p.nombre, sm.delta, sm.stock_result
        FROM stock_movements sm JOIN products p ON p.id = sm.product_id
       WHERE sm.order_id = $1 ORDER BY sm.id`,
-    [creada!.id]
+    [id]
   );
 
-  return { id: creada!.id, stock, faltantes: stock.filter((m) => m.stock_result < 0) };
+  return { id, stock, faltantes: stock.filter((m) => m.stock_result < 0) };
 });
