@@ -1,6 +1,6 @@
 <%- include('../partials/header', { title: 'Clientes', page: 'clients', nombre }) %>
 
-<% if (success === 'deactivated') { %><div class="alert alert-success">Cliente desactivado correctamente.</div><% } %>
+<% if (success === 'deactivated') { %><div class="alert alert-success">Cliente desactivado. Sigue estando: se ve con el filtro "Inactivos" y se puede reactivar.</div><% } %>
 <% if (success && success !== 'deactivated') { %><div class="alert alert-success">Cambios guardados correctamente.</div><% } %>
 <% if (error) { %><div class="alert alert-error">Error al realizar la acción. Intentá de nuevo.</div><% } %>
 
@@ -14,6 +14,14 @@
         <div class="form-group" style="flex:1;min-width:220px;">
           <label class="form-label">Nombre del cliente</label>
           <input type="text" name="search" class="form-control" value="<%= search %>" placeholder="Buscar cliente..." />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Estado</label>
+          <select name="estado" class="form-control">
+            <option value="activos"   <%= estado === 'activos'   ? 'selected' : '' %>>Activos</option>
+            <option value="inactivos" <%= estado === 'inactivos' ? 'selected' : '' %>>Inactivos</option>
+            <option value="todos"     <%= estado === 'todos'     ? 'selected' : '' %>>Todos</option>
+          </select>
         </div>
         <div class="form-group">
           <button type="submit" class="btn btn-primary">Buscar</button>

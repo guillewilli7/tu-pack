@@ -2,10 +2,17 @@
 
 <div class="flex gap-2 items-center" style="margin-bottom:20px;">
   <a href="/clients" class="btn btn-secondary btn-sm">← Volver</a>
-  <form method="POST" action="/clients/<%= client.id %>/deactivate" style="margin-left:auto;" data-name="<%= client.nombre %>">
-    <button type="submit" class="btn btn-sm btn-danger"
-      onclick="return confirm('¿Desactivar a ' + this.closest('form').dataset.name + '?')">Desactivar cliente</button>
-  </form>
+  <% if (client.activo) { %>
+    <form method="POST" action="/clients/<%= client.id %>/deactivate" style="margin-left:auto;" data-name="<%= client.nombre %>">
+      <button type="submit" class="btn btn-sm btn-danger"
+        onclick="return confirm('¿Desactivar a ' + this.closest('form').dataset.name + '? No se borra nada: sale de las listas y se puede reactivar.')">Desactivar cliente</button>
+    </form>
+  <% } else { %>
+    <span class="badge badge-red" style="margin-left:auto;">Cliente inactivo</span>
+    <form method="POST" action="/clients/<%= client.id %>/restore">
+      <button type="submit" class="btn btn-sm btn-primary">Reactivar cliente</button>
+    </form>
+  <% } %>
 </div>
 
 <% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
@@ -41,7 +48,7 @@
 <div class="card section">
   <div class="card-header">
     <span class="card-title">
-      Productos y stock (<%= clientProducts.length %>)
+      Productos y stock (<%= clientProducts.filter(function(p) { return p.activo; }).length %>)
       <% if (client.deposito_nombre) { %>
         <span class="badge badge-blue" style="margin-left:8px;">stock de <%= client.deposito_nombre %></span>
       <% } else if (Number(client.locales) > 0) { %>
@@ -69,10 +76,10 @@
         </tr>
       </thead>
       <tbody>
-        <% if (!clientProducts.length) { %>
+        <% if (!clientProducts.filter(function(p) { return p.activo; }).length) { %>
           <tr><td colspan="4" class="table-empty">Este cliente todavía no tiene productos.</td></tr>
         <% } %>
-        <% clientProducts.forEach(function(p) { %>
+        <% clientProducts.filter(function(p) { return p.activo; }).forEach(function(p) { %>
           <% var bajoMinimo = p.stock_minimo !== null && p.stock <= p.stock_minimo; %>
           <tr>
             <td>
@@ -112,6 +119,40 @@
     </table>
   </div>
 </div>
+
+<% var quitados = clientProducts.filter(function(p) { return !p.activo; }); %>
+<% if (quitados.length) { %>
+<div class="card section">
+  <details>
+    <summary class="branch-summary" style="padding:14px 20px;">
+      <span class="branch-chevron">▶</span>
+      <span class="branch-name">Productos quitados (<%= quitados.length %>)</span>
+      <span class="branch-meta">no se ofrecen en pedidos nuevos · conservan su stock</span>
+    </summary>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Producto</th><th style="width:120px;">Precio</th><th style="width:100px;">Stock</th><th style="width:110px;"></th></tr>
+        </thead>
+        <tbody>
+          <% quitados.forEach(function(p) { %>
+            <tr>
+              <td><strong><%= p.nombre %></strong> <span class="text-muted"><%= p.codigo_prod || '' %></span></td>
+              <td><%= p.precio === null ? '—' : '$' + Number(p.precio).toFixed(2) %></td>
+              <td><%= p.stock %></td>
+              <td>
+                <form method="POST" action="/clients/<%= client.id %>/products/<%= p.bp_id %>/restore">
+                  <button type="submit" class="btn btn-sm btn-primary">Reactivar</button>
+                </form>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </details>
+</div>
+<% } %>
 
 <!-- ── Sucursales ──────────────────────────────────────────────────────── -->
 <div class="card section">
@@ -292,7 +333,7 @@
         <% } %>
         <% movimientos.forEach(function(m) { %>
           <% var monto = Number(m.monto); %>
-          <tr>
+          <tr<%- m.anulado ? ' style="opacity:.55;"' : '' %>>
             <td class="text-muted"><%= new Date(m.fecha).toLocaleDateString('es-UY') %></td>
             <td>
               <% if (m.tipo === 'orden') { %><span class="badge badge-blue">Orden</span>
@@ -307,18 +348,26 @@
               <% if (m.creado_por && m.creado_por !== 'automático') { %>
                 <span class="text-muted">· <%= m.creado_por %></span>
               <% } %>
+              <% if (m.anulado) { %><span class="badge badge-gray">Anulado</span><% } %>
             </td>
-            <td class="saldo <%= monto > 0 ? 'saldo-debe' : 'saldo-favor' %>">
+            <td class="saldo <%= monto > 0 ? 'saldo-debe' : 'saldo-favor' %>"
+                <%- m.anulado ? 'style="text-decoration:line-through;"' : '' %>>
               <%= m.moneda === 'USD' ? 'U$S ' : '$' %><%= monto > 0 ? '+' : '' %><%= monto.toFixed(2) %>
             </td>
             <td class="saldo text-muted">
-              <%= m.moneda === 'USD' ? 'U$S ' : '$' %><%= Number(m.saldo_acumulado).toFixed(2) %>
+              <% if (m.anulado) { %>—<% } else { %>
+                <%= m.moneda === 'USD' ? 'U$S ' : '$' %><%= Number(m.saldo_acumulado).toFixed(2) %>
+              <% } %>
             </td>
             <td>
-              <% if (!m.order_id) { %>
+              <% if (!m.order_id && !m.anulado) { %>
                 <form method="POST" action="/clients/<%= client.id %>/cuenta/<%= m.id %>/delete" data-desc="<%= m.descripcion %>">
                   <button type="submit" class="btn btn-sm btn-secondary"
-                    onclick="return confirm('¿Borrar el movimiento \'' + this.closest('form').dataset.desc + '\'?')">Borrar</button>
+                    onclick="return confirm('¿Anular el movimiento \'' + this.closest('form').dataset.desc + '\'? Deja de sumar al saldo pero queda registrado.')">Anular</button>
+                </form>
+              <% } else if (!m.order_id) { %>
+                <form method="POST" action="/clients/<%= client.id %>/cuenta/<%= m.id %>/restore">
+                  <button type="submit" class="btn btn-sm btn-primary">Restaurar</button>
                 </form>
               <% } else { %>
                 <span class="text-muted">automático</span>

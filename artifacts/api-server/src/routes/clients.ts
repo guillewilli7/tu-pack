@@ -7,14 +7,21 @@ import { pool } from "../db";
  */
 const router = Router();
 
+const ESTADOS: Record<string, string> = {
+  activos: "b.activo",
+  inactivos: "NOT b.activo",
+  todos: "true",
+};
+
 router.get("/", async (req, res) => {
-  const { search, success, error: qErr } = req.query as Record<string, string>;
+  const { search, success, error: qErr, estado } = req.query as Record<string, string>;
+  const clave = estado && ESTADOS[estado] ? estado : "activos";
   try {
     const params: unknown[] = [];
-    let filtro = "";
+    let filtro = ` WHERE ${ESTADOS[clave]}`;
     if (search) {
       params.push(`%${search}%`);
-      filtro = ` WHERE b.nombre ILIKE $1`;
+      filtro += ` AND b.nombre ILIKE $1`;
     }
     const { rows } = await pool.query(
       `SELECT b.id, b.nombre, b.activo,
@@ -31,6 +38,7 @@ router.get("/", async (req, res) => {
     res.render("clients/index", {
       clients: rows,
       search: search || "",
+      estado: clave,
       nombre: req.session.nombre,
       success: success || null,
       error: qErr || null,
@@ -38,7 +46,7 @@ router.get("/", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.render("clients/index", {
-      clients: [], search: "", nombre: req.session.nombre,
+      clients: [], search: "", estado: "activos", nombre: req.session.nombre,
       success: null, error: "Error al cargar los clientes.",
     });
   }
@@ -99,7 +107,8 @@ router.get("/:id", async (req, res) => {
       pool.query(
         `SELECT o.id, o.created_at, o.status, o.total, c.sucursal
            FROM orders o LEFT JOIN clients c ON c.id = o.client_id
-          WHERE o.business_id = $1 ORDER BY o.created_at DESC LIMIT 10`,
+          WHERE o.business_id = $1 AND NOT o.eliminada
+          ORDER BY o.created_at DESC LIMIT 10`,
         [req.params.id]
       ),
       pool.query(
@@ -111,7 +120,8 @@ router.get("/:id", async (req, res) => {
       // Estado de cuenta: los movimientos más recientes primero, con el saldo
       // acumulado hasta cada uno para poder leer la evolución de la deuda.
       pool.query(
-        `SELECT m.*, SUM(m.monto) OVER (PARTITION BY m.moneda ORDER BY m.fecha, m.id) AS saldo_acumulado
+        `SELECT m.*, SUM(m.monto) FILTER (WHERE NOT m.anulado)
+                       OVER (PARTITION BY m.moneda ORDER BY m.fecha, m.id) AS saldo_acumulado
            FROM account_movements m
           WHERE m.business_id = $1
           ORDER BY m.fecha DESC, m.id DESC
@@ -199,9 +209,14 @@ router.post("/:id/products/add", async (req, res) => {
   const { product_id, precio, stock } = req.body as Record<string, string>;
   try {
     await pool.query(
+      // Si el producto ya había sido quitado, agregarlo de nuevo lo reactiva
+      // con el precio nuevo (el stock que tenía no se pisa).
       `INSERT INTO business_products (business_id, product_id, precio, stock)
        VALUES (tupack_stock_owner($1), $2, $3, $4)
-       ON CONFLICT (business_id, product_id) DO NOTHING`,
+       ON CONFLICT (business_id, product_id) DO UPDATE
+          SET activo = true,
+              precio = COALESCE(EXCLUDED.precio, business_products.precio),
+              updated_at = NOW()`,
       [req.params.id, product_id, precio ? parseFloat(precio) : null, parseInt(stock || "0", 10) || 0]
     );
     volver(res, req.params.id);
@@ -248,10 +263,26 @@ router.post("/:id/products/update-stock", async (req, res) => {
   }
 });
 
+/** Quitar un producto no borra nada: se desactiva y deja de ofrecerse. El
+ *  stock y los movimientos quedan por si se vuelve a activar. */
 router.post("/:id/products/:bpId/remove", async (req, res) => {
   try {
     await pool.query(
-      "DELETE FROM business_products WHERE id=$1 AND business_id = tupack_stock_owner($2)",
+      `UPDATE business_products SET activo = false, updated_at = NOW()
+        WHERE id=$1 AND business_id = tupack_stock_owner($2)`,
+      [req.params.bpId, req.params.id]);
+    volver(res, req.params.id);
+  } catch (err) {
+    console.error(err);
+    volver(res, req.params.id, false);
+  }
+});
+
+router.post("/:id/products/:bpId/restore", async (req, res) => {
+  try {
+    await pool.query(
+      `UPDATE business_products SET activo = true, updated_at = NOW()
+        WHERE id=$1 AND business_id = tupack_stock_owner($2)`,
       [req.params.bpId, req.params.id]);
     volver(res, req.params.id);
   } catch (err) {
@@ -287,12 +318,30 @@ router.post("/:id/cuenta", async (req, res) => {
   }
 });
 
-/** Solo se borran los movimientos cargados a mano: el de una orden lo maneja
- *  la propia orden (cambiale el total o cancelala). */
+/** Solo se anulan los movimientos cargados a mano: el de una orden lo maneja
+ *  la propia orden (cambiale el total, cancelala o eliminala).
+ *  Anular no borra: el movimiento queda a la vista, tachado, y no suma. */
 router.post("/:id/cuenta/:movId/delete", async (req, res) => {
   try {
     await pool.query(
-      "DELETE FROM account_movements WHERE id=$1 AND business_id=$2 AND order_id IS NULL",
+      `UPDATE account_movements
+          SET anulado = true, anulado_at = NOW(), anulado_por = $3
+        WHERE id=$1 AND business_id=$2 AND order_id IS NULL`,
+      [req.params.movId, req.params.id, req.session.nombre ?? null]
+    );
+    volver(res, req.params.id);
+  } catch (err) {
+    console.error(err);
+    volver(res, req.params.id, false);
+  }
+});
+
+router.post("/:id/cuenta/:movId/restore", async (req, res) => {
+  try {
+    await pool.query(
+      `UPDATE account_movements
+          SET anulado = false, anulado_at = NULL, anulado_por = NULL
+        WHERE id=$1 AND business_id=$2 AND order_id IS NULL`,
       [req.params.movId, req.params.id]
     );
     volver(res, req.params.id);
@@ -320,6 +369,16 @@ router.post("/:id/phones/add", async (req, res) => {
 router.post("/:id/phones/:phoneId/deactivate", async (req, res) => {
   try {
     await pool.query("UPDATE client_phones SET activo=false WHERE id=$1", [req.params.phoneId]);
+    volver(res, req.params.id);
+  } catch (err) {
+    console.error(err);
+    volver(res, req.params.id, false);
+  }
+});
+
+router.post("/:id/restore", async (req, res) => {
+  try {
+    await pool.query("UPDATE businesses SET activo=true, updated_at=NOW() WHERE id=$1", [req.params.id]);
     volver(res, req.params.id);
   } catch (err) {
     console.error(err);

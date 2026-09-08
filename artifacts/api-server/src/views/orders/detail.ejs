@@ -6,14 +6,23 @@
 
 <% if (success) { %><div class="alert alert-success">Orden actualizada correctamente.</div><% } %>
 <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+<% if (order.eliminada) { %>
+  <div class="alert alert-warning">
+    Esta orden está <strong>eliminada</strong><% if (order.eliminada_at) { %>
+      desde el <%= new Date(order.eliminada_at).toLocaleString('es-UY') %><% } %><% if (order.eliminada_por) { %>
+      (<%= order.eliminada_por %>)<% } %>.
+    No aparece en las listas ni en la cuenta del cliente. Restaurala para volver a trabajarla.
+  </div>
+<% } %>
 
 <%
   var isCompleted = order.status === 'completada' || order.status === 'confirmado';
   var isCancelled = order.status === 'cancelado';
   var isInProcess = order.status === 'en_proceso';
   var isPending   = order.status === 'pendiente';
-  var canAdvance  = isPending || isInProcess;
-  var canCancel   = !isCancelled;
+  var borrada     = !!order.eliminada;
+  var canAdvance  = (isPending || isInProcess) && !borrada;
+  var canCancel   = !isCancelled && !borrada;
   var advanceLabel = isPending ? 'Marcar En Proceso' : 'Marcar Completada';
 %>
 
@@ -88,45 +97,74 @@
 
       <hr style="border:none;border-top:1px solid #e3e8ef;margin:16px 0;" />
 
+      <% if (!borrada) { %>
       <form method="POST" action="/orders/<%= order.id %>">
         <div class="form-group">
           <label class="form-label">Total ($)</label>
           <input type="number" name="total" step="0.01" class="form-control" value="<%= order.total || 0 %>" />
         </div>
+        <div class="text-muted" style="font-size:12px;margin:-8px 0 12px;">
+          Si editás las líneas el total se recalcula solo.
+        </div>
         <button type="submit" name="action" value="update_total" class="btn btn-secondary">Actualizar total</button>
       </form>
+
+      <hr style="border:none;border-top:1px solid #e3e8ef;margin:16px 0;" />
+      <form method="POST" action="/orders/<%= order.id %>">
+        <button type="submit" name="action" value="delete" class="btn btn-danger" style="width:100%;"
+          onclick="return confirm('¿Eliminar la orden #<%= order.id %>? Se devuelve el stock y se saca de la cuenta del cliente, pero queda guardada y se puede restaurar.')">
+          🗑 Eliminar orden
+        </button>
+      </form>
+      <% } else { %>
+      <form method="POST" action="/orders/<%= order.id %>">
+        <button type="submit" name="action" value="restore" class="btn btn-primary" style="width:100%;">
+          ↺ Restaurar orden
+        </button>
+        <div class="text-muted" style="font-size:12px;margin-top:8px;">
+          Vuelve como cancelada; para reactivarla usá "Volver a Pendiente".
+        </div>
+      </form>
+      <% } %>
 
     </div>
   </div>
 </div>
 
 <div class="card section">
-  <div class="card-header"><span class="card-title">Artículos del pedido</span></div>
-  <div class="table-wrap">
-    <% const items = order.items; %>
-    <% if (!items || (Array.isArray(items) && !items.length)) { %>
+  <div class="card-header">
+    <span class="card-title">Artículos del pedido</span>
+    <% if (!borrada) { %>
+      <button type="button" class="btn btn-sm btn-secondary" id="edit-items-btn">Editar líneas</button>
+    <% } %>
+  </div>
+
+  <% const items = order.items; %>
+  <% const itemList = Array.isArray(items) ? items : (items && typeof items === 'object' ? Object.values(items) : []); %>
+
+  <div class="table-wrap" id="items-view">
+    <% if (!itemList.length) { %>
       <div class="table-empty">No hay artículos registrados.</div>
     <% } else { %>
       <table>
         <thead>
           <tr>
             <th>Producto</th>
-            <th>Cantidad</th>
-            <th>Precio unit.</th>
-            <th>Subtotal</th>
+            <th style="width:100px;">Cantidad</th>
+            <th style="width:120px;">Precio unit.</th>
+            <th style="width:120px;">Subtotal</th>
             <th>Notas</th>
           </tr>
         </thead>
         <tbody>
-          <% const itemList = Array.isArray(items) ? items : (typeof items === 'object' ? Object.values(items) : []); %>
           <% itemList.forEach(function(item) { %>
-            <% var nombre = item.nombre_pedido || item.nombre_catalogo || item.nombre || item.name || item.producto || '—'; %>
+            <% var nombreItem = item.nombre_pedido || item.nombre_catalogo || item.nombre || item.name || item.producto || '—'; %>
             <% var codigo = item.codigo_prod || item.codigo || ''; %>
             <% var cantidad = item.cantidad || item.qty || item.quantity || '—'; %>
             <% var precioUnit = item.precio_unitario || item.precio || item.price || null; %>
             <% var subtotal = item.subtotal || null; %>
             <tr>
-              <td><strong><%= nombre %></strong><% if (codigo) { %> <span class="text-muted" style="font-size:12px;"><%= codigo %></span><% } %></td>
+              <td><strong><%= nombreItem %></strong><% if (codigo) { %> <span class="text-muted" style="font-size:12px;"><%= codigo %></span><% } %></td>
               <td><%= cantidad %></td>
               <td><%= precioUnit !== null ? '$' + Number(precioUnit).toFixed(2) : '—' %></td>
               <td><%= subtotal !== null ? '$' + Number(subtotal).toFixed(2) : '—' %></td>
@@ -137,6 +175,191 @@
       </table>
     <% } %>
   </div>
+
+  <% if (!borrada) { %>
+  <div id="items-edit" style="display:none;">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="min-width:220px;">Producto</th>
+            <th style="width:100px;">Cantidad</th>
+            <th style="width:130px;">Precio unit.</th>
+            <th style="width:110px;">Subtotal</th>
+            <th style="width:130px;">Stock</th>
+            <th style="width:50px;"></th>
+          </tr>
+        </thead>
+        <tbody id="edit-body"></tbody>
+      </table>
+    </div>
+    <div class="card-body">
+      <div class="flex gap-2 items-center" style="flex-wrap:wrap;">
+        <button type="button" class="btn btn-secondary btn-sm" id="add-line-btn">+ Agregar línea</button>
+        <div style="margin-left:auto;font-size:18px;font-weight:700;color:#142a47;" id="edit-total">$0,00</div>
+      </div>
+      <div id="edit-warning" class="alert alert-warning" style="display:none;margin-top:14px;"></div>
+      <div class="flex gap-2" style="margin-top:16px;">
+        <form method="POST" action="/orders/<%= order.id %>" id="items-form">
+          <input type="hidden" name="items" id="items-json" />
+          <button type="submit" name="action" value="save_items" class="btn btn-primary">Guardar líneas</button>
+        </form>
+        <button type="button" class="btn btn-secondary" id="cancel-edit-btn">Cancelar</button>
+      </div>
+      <div class="text-muted" style="font-size:12px;margin-top:10px;">
+        Al guardar se recalculan el total, el stock y el cargo en la cuenta del cliente.
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    var catalogo = <%- JSON.stringify(catalogo || []) %>;
+    var lineas = <%- JSON.stringify(itemList.map(function (i) {
+      return { product_id: i.product_id || null,
+               cantidad: Number(i.cantidad || 0),
+               precio_unitario: Number(i.precio_unitario || 0) };
+    })) %>;
+
+    var body = document.getElementById('edit-body');
+    var stockPorProducto = {};
+    catalogo.forEach(function (p) { stockPorProducto[p.product_id] = Number(p.stock || 0); });
+
+    function money(n) {
+      return '$' + Number(n || 0).toLocaleString('es-UY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function opciones(sel) {
+      var html = '<option value="">— Seleccionar producto —</option>';
+      catalogo.forEach(function (p) {
+        html += '<option value="' + p.product_id + '" data-precio="' + (p.precio || 0) + '"' +
+          (String(p.product_id) === String(sel) ? ' selected' : '') + '>' +
+          esc(p.nombre) + (p.codigo_prod ? ' (' + esc(p.codigo_prod) + ')' : '') +
+          '  ·  stock ' + Number(p.stock || 0) + '</option>';
+      });
+      return html;
+    }
+
+    function render() {
+      body.innerHTML = '';
+      lineas.forEach(function (l, idx) {
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td><select class="form-control" data-campo="product_id" data-idx="' + idx + '" style="width:100%;">' + opciones(l.product_id) + '</select></td>' +
+          '<td><input type="number" min="0" step="1" class="form-control" data-campo="cantidad" data-idx="' + idx + '" value="' + l.cantidad + '" style="width:100%;text-align:right;" /></td>' +
+          '<td><input type="number" min="0" step="0.01" class="form-control" data-campo="precio_unitario" data-idx="' + idx + '" value="' + Number(l.precio_unitario).toFixed(2) + '" style="width:100%;text-align:right;" /></td>' +
+          '<td style="text-align:right;padding-right:8px;font-weight:500;">' + money(l.cantidad * l.precio_unitario) + '</td>' +
+          '<td class="text-muted" style="font-size:13px;">' + textoStock(l) + '</td>' +
+          '<td style="text-align:center;"><button type="button" class="btn btn-sm btn-danger" data-borrar="' + idx + '">✕</button></td>';
+        body.appendChild(tr);
+      });
+      totalizar();
+    }
+
+    function textoStock(l) {
+      if (!l.product_id || stockPorProducto[l.product_id] === undefined) return '—';
+      var hay = stockPorProducto[l.product_id];
+      var original = original_de(l.product_id);
+      var queda = hay + original - l.cantidad;   // el stock ya tiene descontada la línea vieja
+      return queda < 0
+        ? '<span style="color:#c0392b;font-weight:600;">' + queda + '</span>'
+        : String(queda);
+    }
+
+    var originales = {};
+    <% itemList.forEach(function (i) { %>
+      <% if (i.product_id) { %>originales[<%= i.product_id %>] = (originales[<%= i.product_id %>] || 0) + Number(<%= i.cantidad || 0 %>);<% } %>
+    <% }) %>
+    function original_de(pid) { return originales[pid] || 0; }
+
+    function totalizar() {
+      var total = 0, faltantes = [];
+      lineas.forEach(function (l) {
+        total += l.cantidad * l.precio_unitario;
+        if (l.product_id && stockPorProducto[l.product_id] !== undefined) {
+          var queda = stockPorProducto[l.product_id] + original_de(l.product_id) - l.cantidad;
+          if (queda < 0) faltantes.push(nombreDe(l.product_id) + ' (faltan ' + Math.abs(queda) + ')');
+        }
+      });
+      document.getElementById('edit-total').textContent = money(total);
+      var warn = document.getElementById('edit-warning');
+      if (faltantes.length) {
+        warn.textContent = 'Sin stock suficiente: ' + faltantes.join(', ') + '. Se guarda igual y el stock queda en negativo.';
+        warn.style.display = '';
+      } else {
+        warn.style.display = 'none';
+      }
+    }
+
+    function nombreDe(pid) {
+      var p = catalogo.filter(function (x) { return String(x.product_id) === String(pid); })[0];
+      return p ? p.nombre : 'producto';
+    }
+
+    body.addEventListener('input', alCambiar);
+    body.addEventListener('change', alCambiar);
+    function alCambiar(e) {
+      var campo = e.target.getAttribute('data-campo');
+      if (!campo) return;
+      var idx = Number(e.target.getAttribute('data-idx'));
+      if (campo === 'product_id') {
+        lineas[idx].product_id = e.target.value ? Number(e.target.value) : null;
+        var opt = e.target.options[e.target.selectedIndex];
+        if (opt && opt.dataset.precio && !lineas[idx].precio_unitario) {
+          lineas[idx].precio_unitario = Number(opt.dataset.precio);
+        }
+        render();
+        return;
+      }
+      lineas[idx][campo] = Number(e.target.value) || 0;
+      var fila = e.target.closest('tr');
+      fila.children[3].textContent = money(lineas[idx].cantidad * lineas[idx].precio_unitario);
+      fila.children[4].innerHTML = textoStock(lineas[idx]);
+      totalizar();
+    }
+
+    body.addEventListener('click', function (e) {
+      var idx = e.target.getAttribute('data-borrar');
+      if (idx === null) return;
+      lineas.splice(Number(idx), 1);
+      render();
+    });
+
+    document.getElementById('add-line-btn').addEventListener('click', function () {
+      lineas.push({ product_id: null, cantidad: 1, precio_unitario: 0 });
+      render();
+    });
+
+    document.getElementById('edit-items-btn').addEventListener('click', function () {
+      document.getElementById('items-view').style.display = 'none';
+      document.getElementById('items-edit').style.display = '';
+      this.style.display = 'none';
+      render();
+    });
+
+    document.getElementById('cancel-edit-btn').addEventListener('click', function () {
+      document.getElementById('items-edit').style.display = 'none';
+      document.getElementById('items-view').style.display = '';
+      document.getElementById('edit-items-btn').style.display = '';
+    });
+
+    document.getElementById('items-form').addEventListener('submit', function (e) {
+      var validas = lineas.filter(function (l) { return l.product_id && l.cantidad > 0; });
+      if (!validas.length) {
+        e.preventDefault();
+        alert('La orden tiene que tener al menos una línea con producto y cantidad.');
+        return;
+      }
+      document.getElementById('items-json').value = JSON.stringify(validas);
+    });
+
+    function esc(t) {
+      return String(t == null ? '' : t)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+  })();
+  </script>
+  <% } %>
 </div>
 
 <div class="card section">

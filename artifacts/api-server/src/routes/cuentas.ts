@@ -30,8 +30,10 @@ router.get("/", async (req, res) => {
       `WITH cuentas AS (
          SELECT b.id, b.nombre, tupack_saldo(b.id, 'UYU') AS saldo,
                 tupack_saldo(b.id, 'USD') AS saldo_usd,
-                (SELECT max(m.fecha) FROM account_movements m WHERE m.business_id = b.id) AS ultimo_movimiento,
-                (SELECT count(*)    FROM account_movements m WHERE m.business_id = b.id) AS movimientos
+                (SELECT max(m.fecha) FROM account_movements m
+                  WHERE m.business_id = b.id AND NOT m.anulado) AS ultimo_movimiento,
+                (SELECT count(*)    FROM account_movements m
+                  WHERE m.business_id = b.id AND NOT m.anulado) AS movimientos
            FROM businesses b
           WHERE b.activo = true${where}
        )

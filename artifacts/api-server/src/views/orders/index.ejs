@@ -17,6 +17,7 @@
             <option value="en_proceso" <%= filter.status === 'en_proceso' ? 'selected' : '' %>>En Proceso</option>
             <option value="completada" <%= filter.status === 'completada' ? 'selected' : '' %>>Completada</option>
             <option value="cancelado"  <%= filter.status === 'cancelado'  ? 'selected' : '' %>>Cancelada</option>
+            <option value="eliminadas" <%= filter.status === 'eliminadas' ? 'selected' : '' %>>Eliminadas</option>
           </select>
         </div>
         <div class="form-group">
@@ -81,6 +82,7 @@
               <% } else { %>
                 <span class="badge badge-gray"><%= o.status %></span>
               <% } %>
+              <% if (o.eliminada) { %><span class="badge badge-gray">Eliminada</span><% } %>
             </td>
             <td>$<%= o.total ? Number(o.total).toFixed(2) : '0.00' %></td>
             <td onclick="event.stopPropagation()"><a href="/orders/<%= o.id %>" class="btn btn-sm btn-secondary">Ver</a></td>

@@ -225,7 +225,7 @@ router.get("/clients/:id/ultimo-pedido", async (req, res) => {
     const { rows } = await pool.query(
       `SELECT o.id, o.created_at, o.status, o.total, o.items
          FROM orders o
-        WHERE o.client_id = $1 AND o.status <> 'cancelado'
+        WHERE o.client_id = $1 AND o.status <> 'cancelado' AND NOT o.eliminada
         ORDER BY o.created_at DESC LIMIT 1`,
       [req.params.id]
     );
@@ -250,7 +250,7 @@ router.get("/businesses/:id/cuenta", async (req, res) => {
       ),
       pool.query(
         `SELECT fecha, tipo, descripcion, monto, moneda, order_id
-           FROM account_movements WHERE business_id = $1
+           FROM account_movements WHERE business_id = $1 AND NOT anulado
           ORDER BY fecha DESC, id DESC LIMIT 50`,
         [req.params.id]
       ),

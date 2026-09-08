@@ -15,6 +15,14 @@
           <input type="text" name="search" class="form-control" value="<%= search %>" placeholder="Buscar producto..." />
         </div>
         <div class="form-group">
+          <label class="form-label">Estado</label>
+          <select name="estado" class="form-control">
+            <option value="activos"   <%= estado === 'activos'   ? 'selected' : '' %>>Activos</option>
+            <option value="inactivos" <%= estado === 'inactivos' ? 'selected' : '' %>>Dados de baja</option>
+            <option value="todos"     <%= estado === 'todos'     ? 'selected' : '' %>>Todos</option>
+          </select>
+        </div>
+        <div class="form-group">
           <button type="submit" class="btn btn-primary">Buscar</button>
           <a href="/products" class="btn btn-secondary" style="margin-left:8px;">Limpiar</a>
         </div>
@@ -25,7 +33,10 @@
 
 <div class="card">
   <div class="card-header">
-    <span class="card-title">Productos (<%= products.length %>)</span>
+    <span class="card-title">
+      Productos (<%= products.length %>)
+      <% if (estado !== 'activos') { %><span class="badge badge-gray"><%= estado === 'inactivos' ? 'dados de baja' : 'todos' %></span><% } %>
+    </span>
     <button class="btn btn-sm btn-primary" onclick="document.getElementById('add-modal').classList.add('open')">+ Nuevo producto</button>
   </div>
   <div class="table-wrap">
@@ -51,8 +62,18 @@
             <td><%= p.unidad || '—' %></td>
             <td>$<%= Number(p.costo || 0).toFixed(2) %></td>
             <td><span class="badge <%= p.activo ? 'badge-green' : 'badge-red' %>"><%= p.activo ? 'Activo' : 'Inactivo' %></span></td>
-            <td onclick="event.stopPropagation()">
+            <td onclick="event.stopPropagation()" style="white-space:nowrap;">
               <button class="btn btn-sm btn-secondary" onclick="openEdit(<%= JSON.stringify(p) %>)">Editar</button>
+              <% if (p.activo) { %>
+                <form method="POST" action="/products/<%= p.id %>/deactivate" style="display:inline;" data-name="<%= p.nombre %>">
+                  <button type="submit" class="btn btn-sm btn-danger"
+                    onclick="return confirm('¿Dar de baja ' + this.closest('form').dataset.name + '? Deja de ofrecerse, pero no se borra ni se pierden las órdenes viejas.')">Dar de baja</button>
+                </form>
+              <% } else { %>
+                <form method="POST" action="/products/<%= p.id %>/restore" style="display:inline;">
+                  <button type="submit" class="btn btn-sm btn-primary">Reactivar</button>
+                </form>
+              <% } %>
             </td>
           </tr>
         <% }) %>
