@@ -1,9 +1,10 @@
-import { conAuth, idDe } from "@/lib/api";
+import { conAuth, exigirPropiedad, idDe } from "@/lib/api";
 import { consultar } from "@/lib/db";
 import { saldosDeNegocio } from "@/lib/consultas";
 
-export const GET = conAuth(async (_request, ctx: { params: Promise<{ id: string }> }) => {
+export const GET = conAuth(async (request, ctx: { params: Promise<{ id: string }> }) => {
   const id = await idDe(ctx);
+  await exigirPropiedad(request, { businessId: id });
   const [saldos, movimientos] = await Promise.all([
     saldosDeNegocio(id),
     consultar(

@@ -9,6 +9,82 @@ import { pool } from "../db";
  */
 const router = Router();
 
+/**
+ * El agente de WhatsApp manda en cada llamada el teléfono desde el que le
+ * escriben (lo pone el flujo de n8n, no el modelo). Con eso la API limita lo
+ * que puede leer: solo los datos del cliente dueño de ese número. Sin este
+ * cerco, alguien podía decirle al bot que era otro negocio y hacerle cantar
+ * precios y saldos ajenos.
+ *
+ * El panel no manda el header y no queda limitado.
+ */
+const HEADER_TELEFONO = "x-tupack-telefono";
+
+const soloDigitos = (valor: string) => valor.replace(/\D/g, "");
+
+function telefonoDe(req: import("express").Request): string | null {
+  const crudo = req.header(HEADER_TELEFONO);
+  const digitos = crudo ? soloDigitos(crudo) : "";
+  return digitos.length >= 8 ? digitos : null;
+}
+
+/** Sucursales registradas a ese número (se compara por los últimos 8 dígitos). */
+async function sucursalesDelTelefono(telefono: string) {
+  const { rows } = await pool.query(
+    `SELECT c.id AS client_id, c.business_id, b.nombre AS negocio, c.sucursal,
+            c.direccion_entrega, c.horario_entrega
+       FROM client_phones ph
+       JOIN clients c    ON c.id = ph.client_id
+       JOIN businesses b ON b.id = c.business_id
+      WHERE ph.activo AND c.activo AND b.activo
+        AND right(regexp_replace(ph.phone, '\\D', '', 'g'), 8) = right($1, 8)
+      ORDER BY b.nombre, c.sucursal NULLS FIRST`,
+    [telefono]
+  );
+  return rows as Array<{ client_id: number; business_id: number; negocio: string; sucursal: string | null }>;
+}
+
+/**
+ * Corta la respuesta si el número que escribe no es dueño de esa sucursal o
+ * de ese negocio. Devuelve true cuando ya contestó (y hay que frenar).
+ */
+async function ajeno(
+  req: import("express").Request, res: import("express").Response,
+  quiere: { clientId?: number; businessId?: number }
+) {
+  const telefono = telefonoDe(req);
+  if (!telefono) return false;                    // el panel: sin restricción
+
+  const propias = await sucursalesDelTelefono(telefono);
+  const permitido = quiere.clientId
+    ? propias.some((s) => s.client_id === quiere.clientId)
+    : propias.some((s) => s.business_id === quiere.businessId);
+
+  if (!permitido) {
+    res.status(403).json({
+      error: "Ese número no está registrado en esa cuenta. No se pueden dar precios, stock ni saldos.",
+    });
+    return true;
+  }
+  return false;
+}
+
+/** Quién es el que escribe. El agente no elige cliente: sale del teléfono. */
+router.get("/clients/por-telefono", async (req, res) => {
+  const telefono = telefonoDe(req) ?? soloDigitos(String(req.query.phone ?? ""));
+  if (telefono.length < 8) {
+    res.json({ registrado: false, sucursales: [] });
+    return;
+  }
+  try {
+    const sucursales = await sucursalesDelTelefono(telefono);
+    res.json({ registrado: sucursales.length > 0, sucursales });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error al identificar el teléfono." });
+  }
+});
+
 router.get("/products", async (req, res) => {
   const { search } = req.query as Record<string, string>;
   try {
@@ -54,6 +130,13 @@ router.get("/businesses", async (req, res) => {
 router.get("/clients", async (req, res) => {
   const { search } = req.query as Record<string, string>;
   try {
+    // Buscar clientes por nombre es del panel. Desde WhatsApp se responde
+    // solo con las sucursales de ese número.
+    const telefono = telefonoDe(req);
+    if (telefono) {
+      res.json(await sucursalesDelTelefono(telefono));
+      return;
+    }
     const params: unknown[] = [];
     let where = "WHERE c.activo = true AND b.activo = true";
     if (search) {
@@ -76,6 +159,7 @@ router.get("/clients", async (req, res) => {
 
 router.get("/clients/:id", async (req, res) => {
   try {
+    if (await ajeno(req, res, { clientId: Number(req.params.id) })) return;
     const { rows } = await pool.query(
       `SELECT c.id, c.business_id, b.nombre AS negocio, c.sucursal, c.codigo_cliente,
               c.razon_social, c.rut, c.direccion_facturacion,
@@ -97,6 +181,7 @@ router.get("/clients/:id", async (req, res) => {
 
 router.get("/clients/:id/phones", async (req, res) => {
   try {
+    if (await ajeno(req, res, { clientId: Number(req.params.id) })) return;
     const { rows } = await pool.query(
       `SELECT phone, label FROM client_phones
         WHERE client_id = $1 AND activo = true ORDER BY id`,
@@ -112,6 +197,7 @@ router.get("/clients/:id/phones", async (req, res) => {
 /** Productos del negocio dueño de esa sucursal, con precio y stock. */
 router.get("/clients/:id/products", async (req, res) => {
   try {
+    if (await ajeno(req, res, { clientId: Number(req.params.id) })) return;
     const { rows } = await pool.query(
       `SELECT bp.product_id, bp.precio AS precio_cliente, bp.precio, bp.stock,
               p.nombre, p.codigo_prod, p.unidad
@@ -131,6 +217,7 @@ router.get("/clients/:id/products", async (req, res) => {
 
 router.get("/businesses/:id/products", async (req, res) => {
   try {
+    if (await ajeno(req, res, { businessId: Number(req.params.id) })) return;
     const { rows } = await pool.query(
       `SELECT bp.product_id, bp.precio, bp.stock, bp.stock_minimo,
               p.nombre, p.codigo_prod, p.unidad
@@ -222,6 +309,7 @@ router.post("/clients/:id/products", async (req, res) => {
 /** Último pedido de una sucursal: con esto el agente resuelve "lo de siempre". */
 router.get("/clients/:id/ultimo-pedido", async (req, res) => {
   try {
+    if (await ajeno(req, res, { clientId: Number(req.params.id) })) return;
     const { rows } = await pool.query(
       `SELECT o.id, o.created_at, o.status, o.total, o.items
          FROM orders o
@@ -243,6 +331,7 @@ router.get("/clients/:id/ultimo-pedido", async (req, res) => {
 /** Estado de cuenta de un negocio: saldo y últimos movimientos. */
 router.get("/businesses/:id/cuenta", async (req, res) => {
   try {
+    if (await ajeno(req, res, { businessId: Number(req.params.id) })) return;
     const [saldo, movimientos] = await Promise.all([
       pool.query(
         "SELECT tupack_saldo($1,'UYU') AS uyu, tupack_saldo($1,'USD') AS usd",
@@ -278,6 +367,15 @@ router.post("/orders", async (req, res) => {
     status?: string; items?: unknown; total?: number; notas?: string;
   };
   try {
+    if (client_id && (await ajeno(req, res, { clientId: Number(client_id) }))) return;
+    if (!client_id && business_id && (await ajeno(req, res, { businessId: Number(business_id) }))) return;
+    // Sin sucursal ni negocio identificados, un número de WhatsApp no puede
+    // cargar nada: no hay contra qué validar.
+    if (!client_id && !business_id && telefonoDe(req)) {
+      res.status(403).json({ error: "Falta la sucursal del pedido." });
+      return;
+    }
+
     let negocioId = business_id ?? null;
     if (!negocioId && client_id) {
       const { rows } = await pool.query("SELECT business_id FROM clients WHERE id = $1", [client_id]);
