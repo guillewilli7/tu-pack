@@ -24,6 +24,8 @@
   var canAdvance  = (isPending || isInProcess) && !borrada;
   var canCancel   = !isCancelled && !borrada;
   var advanceLabel = isPending ? 'Marcar En Proceso' : 'Marcar Completada';
+  var backLabel = isCompleted ? 'Volver a En Proceso' : (isInProcess ? 'Volver a Pendiente' : null);
+  var canGoBack = !borrada && !!backLabel;
 %>
 
 <div class="section grid-2">
@@ -63,6 +65,14 @@
       <form method="POST" action="/orders/<%= order.id %>" style="margin-bottom:12px;">
         <button type="submit" name="action" value="advance" class="btn btn-primary" style="width:100%;">
           ▶ <%= advanceLabel %>
+        </button>
+      </form>
+      <% } %>
+
+      <% if (canGoBack) { %>
+      <form method="POST" action="/orders/<%= order.id %>" style="margin-bottom:12px;">
+        <button type="submit" name="action" value="back" class="btn btn-secondary" style="width:100%;">
+          ◀ <%= backLabel %>
         </button>
       </form>
       <% } %>

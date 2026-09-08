@@ -9,6 +9,15 @@ const NEXT_STATUS: Record<string, string> = {
   en_proceso: "completada",
 };
 
+// El estado también vuelve atrás: marcar completada de más pasa, y no hay que
+// cancelar la orden para arreglarlo. Ningún paso de estos toca el stock ni la
+// cuenta corriente (eso solo lo mueve pasar a "cancelado").
+const PREV_STATUS: Record<string, string> = {
+  completada: "en_proceso",
+  confirmado: "en_proceso",
+  en_proceso: "pendiente",
+};
+
 const ALLOWED_CANCEL = new Set(["pendiente", "en_proceso", "completada", "confirmado"]);
 
 router.get("/", async (req, res) => {
@@ -228,6 +237,14 @@ router.post("/:id", async (req, res) => {
       await pool.query(
         "UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2",
         [next, req.params.id]
+      );
+
+    } else if (action === "back") {
+      const prev = PREV_STATUS[currentStatus];
+      if (!prev) return renderError(`No se puede volver atrás desde el estado "${currentStatus}".`);
+      await pool.query(
+        "UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2",
+        [prev, req.params.id]
       );
     } else if (action === "cancel") {
       if (!ALLOWED_CANCEL.has(currentStatus)) {

@@ -79,6 +79,12 @@ export async function guardarLineas(ordenId: number, lineas: LineaPedido[]) {
 }
 
 const SIGUIENTE: Record<string, string> = { pendiente: "en_proceso", en_proceso: "completada" };
+// El estado también se puede volver atrás: marcar completada de más pasa, y
+// no hay razón para tener que cancelar la orden para corregirlo. Ninguno de
+// estos pasos toca el stock ni la cuenta (eso solo lo mueve "cancelado").
+const ANTERIOR: Record<string, string> = {
+  completada: "en_proceso", confirmado: "en_proceso", en_proceso: "pendiente",
+};
 
 export async function accionOrden(ordenId: number, accion: string, valor?: string) {
   const sesion = await pedirSesion();
@@ -94,6 +100,11 @@ export async function accionOrden(ordenId: number, accion: string, valor?: strin
     const proximo = SIGUIENTE[actual.status];
     if (!proximo) throw new Error(`No se puede avanzar desde "${actual.status}".`);
     await consultar("UPDATE orders SET status=$1, updated_at=NOW() WHERE id=$2", [proximo, ordenId]);
+
+  } else if (accion === "retroceder") {
+    const previo = ANTERIOR[actual.status];
+    if (!previo) throw new Error(`No se puede volver atrás desde "${actual.status}".`);
+    await consultar("UPDATE orders SET status=$1, updated_at=NOW() WHERE id=$2", [previo, ordenId]);
 
   } else if (accion === "cancelar") {
     await consultar("UPDATE orders SET status='cancelado', updated_at=NOW() WHERE id=$1", [ordenId]);
