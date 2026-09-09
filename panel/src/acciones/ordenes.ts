@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { consultar, unaFila } from "@/lib/db";
 import { pedirSesion } from "@/lib/auth";
+import { notificarPedidoNuevo } from "@/lib/pedidos";
 
 export type LineaPedido = { product_id: number; cantidad: number; precio_unitario: number };
 
@@ -60,6 +61,7 @@ export async function crearOrden(datos: {
      JSON.stringify(items), total, datos.notas ? JSON.stringify({ notas: datos.notas }) : null]
   );
 
+  notificarPedidoNuevo(fila!.id);
   revalidatePath("/ordenes");
   redirect(`/ordenes/${fila!.id}`);
 }

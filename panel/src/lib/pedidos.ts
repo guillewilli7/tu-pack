@@ -6,6 +6,18 @@ export type CuerpoOrden = {
   status?: string; items?: unknown; total?: number | string; notas?: string;
 };
 
+const WEBHOOK_PEDIDO = "https://personal-n8n.zampow.easypanel.host/webhook/tupack-mail-pedido";
+
+export async function notificarPedidoNuevo(orderId: number) {
+  try {
+    await fetch(WEBHOOK_PEDIDO, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ order_id: orderId }),
+    });
+  } catch { /* el mail no frena el pedido */ }
+}
+
 /** Inserta la orden. El stock y el cargo en cuenta los aplica la base. */
 export async function altaDeOrden(b: CuerpoOrden): Promise<number> {
   let negocioId = b.business_id ?? null;
@@ -29,5 +41,7 @@ export async function altaDeOrden(b: CuerpoOrden): Promise<number> {
      b.status || "pendiente", JSON.stringify(b.items ?? []),
      parseFloat(String(b.total)) || 0, b.notas ? JSON.stringify({ notas: b.notas }) : null]
   );
-  return creada!.id;
+  const id = creada!.id;
+  notificarPedidoNuevo(id);
+  return id;
 }
