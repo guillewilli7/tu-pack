@@ -43,8 +43,8 @@ export default async function Login({
             className="h-14 w-auto brightness-0 invert"
           />
           <div className="h-px w-16 bg-white/20" />
-          <p className="text-white/60 text-sm leading-relaxed">
-            CEBRAAAAAAAAAAAAAAA
+          <p className="text-white/80 text-3xl font-bold leading-relaxed" style={{ fontFamily: "'Courier New', monospace", letterSpacing: "0.15em" }}>
+            CEBRAAAAAAAAAAAAAAA!!!
           </p>
         </div>
       </div>
