@@ -44,7 +44,7 @@ export default async function Login({
           />
           <div className="h-px w-16 bg-white/20" />
           <p className="text-white/60 text-sm leading-relaxed">
-            Panel de administración de pedidos, stock y cuentas corrientes.
+            CEBRAAAAAAAAAAAAAAA
           </p>
         </div>
       </div>

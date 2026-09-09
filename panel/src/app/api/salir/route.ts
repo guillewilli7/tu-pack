@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
+import { headers } from "next/headers";
 import { cerrarSesion } from "@/lib/auth";
 
-export async function POST(request: Request) {
+export async function POST() {
   await cerrarSesion();
-  return NextResponse.redirect(new URL("/login", request.url), 303);
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  return NextResponse.redirect(new URL("/login", `${proto}://${host}`), 303);
 }
