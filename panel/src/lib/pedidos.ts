@@ -18,6 +18,26 @@ export async function notificarPedidoNuevo(orderId: number) {
   } catch { /* el mail no frena el pedido */ }
 }
 
+export async function notificarPedidoCancelado(orderId: number) {
+  try {
+    await fetch(WEBHOOK_PEDIDO, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ order_id: orderId, evento: "cancelado" }),
+    });
+  } catch { /* el mail no frena la cancelación */ }
+}
+
+export async function notificarPedidoModificado(orderId: number) {
+  try {
+    await fetch(WEBHOOK_PEDIDO, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ order_id: orderId, evento: "modificado" }),
+    });
+  } catch { /* el mail no frena la modificación */ }
+}
+
 /** Inserta la orden. El stock y el cargo en cuenta los aplica la base. */
 export async function altaDeOrden(b: CuerpoOrden): Promise<number> {
   let negocioId = b.business_id ?? null;
