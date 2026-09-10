@@ -28,7 +28,8 @@ export const GET = conAuth(async (request) => {
 
   return consultar(
     `SELECT c.id, c.business_id, b.nombre AS negocio, c.sucursal,
-            c.direccion_entrega, c.horario_entrega
+            c.direccion_entrega, c.horario_entrega,
+            'aproximado' AS tipo_match
        FROM clients c JOIN businesses b ON b.id = c.business_id
       WHERE c.activo AND b.activo
         AND similarity(b.nombre || ' ' || COALESCE(c.sucursal,''), $1) > 0.2
