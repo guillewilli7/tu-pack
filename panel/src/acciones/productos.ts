@@ -1,18 +1,46 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { consultar } from "@/lib/db";
+import { consultar, unaFila } from "@/lib/db";
 import { pedirSesion } from "@/lib/auth";
+import { avisar } from "@/lib/avisos";
 
 export async function crearProducto(datos: FormData) {
   await pedirSesion();
   const t = (c: string) => String(datos.get(c) ?? "").trim();
-  await consultar(
+  const nombre = t("nombre");
+
+  const creado = await unaFila<{ id: number }>(
     `INSERT INTO products (codigo_prod, nombre, descripcion, unidad, costo, activo)
-     VALUES ($1,$2,$3,$4,$5,true)`,
-    [t("codigo_prod") || null, t("nombre"), t("descripcion") || null,
+     VALUES ($1,$2,$3,$4,$5,true) RETURNING id`,
+    [t("codigo_prod") || null, nombre, t("descripcion") || null,
      t("unidad") || "unidad", parseFloat(t("costo")) || 0]
   );
+
+  // Un producto sin cliente no aparece en Stock: si eligieron uno acá, se lo
+  // asignamos en el mismo paso para que quede listo para cargarle stock.
+  const businessId = Number(datos.get("business_id"));
+  if (businessId) {
+    const precio = t("precio");
+    await consultar(
+      `INSERT INTO business_products (business_id, product_id, precio, stock)
+       VALUES (tupack_stock_owner($1), $2, $3, $4)
+       ON CONFLICT (business_id, product_id) DO UPDATE
+          SET activo = true, precio = COALESCE(EXCLUDED.precio, business_products.precio),
+              updated_at = NOW()`,
+      [businessId, creado!.id, precio === "" ? null : parseFloat(precio),
+       parseInt(t("stock"), 10) || 0]
+    );
+    const negocio = await unaFila<{ nombre: string }>(
+      "SELECT nombre FROM businesses WHERE id = $1", [businessId]
+    );
+    revalidatePath("/stock");
+    revalidatePath(`/clientes/${businessId}`);
+    await avisar(`"${nombre}" creado y asignado a ${negocio?.nombre ?? "el cliente"}.`);
+  } else {
+    await avisar(`"${nombre}" creado. Asignalo a un cliente para poder cargarle stock.`);
+  }
+
   revalidatePath("/productos");
 }
 
@@ -24,6 +52,8 @@ export async function guardarProducto(id: number, datos: FormData) {
     [t("nombre"), t("descripcion") || null, t("unidad") || "unidad", parseFloat(t("costo")) || 0, id]
   );
   revalidatePath("/productos");
+  revalidatePath("/stock");
+  await avisar(`"${t("nombre")}" guardado.`);
 }
 
 /** Dar de baja no borra: el producto deja de ofrecerse y se puede reactivar. */
@@ -31,4 +61,6 @@ export async function cambiarEstadoProducto(id: number, activo: boolean) {
   await pedirSesion();
   await consultar("UPDATE products SET activo=$1 WHERE id=$2", [activo, id]);
   revalidatePath("/productos");
+  revalidatePath("/stock");
+  await avisar(activo ? "Producto reactivado." : "Producto dado de baja.");
 }

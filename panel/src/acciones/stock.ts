@@ -1,8 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { consultar } from "@/lib/db";
+import { consultar, unaFila } from "@/lib/db";
 import { pedirSesion } from "@/lib/auth";
+import { avisar } from "@/lib/avisos";
 
 /** Ajuste de stock desde la pantalla transversal. Deja movimiento en la base. */
 export async function ajustarStock(
@@ -20,4 +21,41 @@ export async function ajustarStock(
   ]);
   revalidatePath("/stock");
   revalidatePath(`/clientes/${businessId}`);
+  await avisar("Stock actualizado.");
+}
+
+/**
+ * Asigna un producto del catálogo a un cliente y le deja el stock inicial.
+ * Es la salida para los productos recién creados, que no aparecen en Stock
+ * hasta que tienen cliente.
+ */
+export async function asignarProducto(datos: FormData) {
+  await pedirSesion();
+  const productId = Number(datos.get("product_id"));
+  const businessId = Number(datos.get("business_id"));
+  if (!productId || !businessId) {
+    await avisar("Elegí un cliente para asignar el producto.", "peligro");
+    return;
+  }
+
+  const precio = String(datos.get("precio") ?? "").trim();
+  await consultar(
+    `INSERT INTO business_products (business_id, product_id, precio, stock)
+     VALUES (tupack_stock_owner($1), $2, $3, $4)
+     ON CONFLICT (business_id, product_id) DO UPDATE
+        SET activo = true, precio = COALESCE(EXCLUDED.precio, business_products.precio),
+            updated_at = NOW()`,
+    [businessId, productId, precio === "" ? null : parseFloat(precio),
+     parseInt(String(datos.get("stock") ?? "0"), 10) || 0]
+  );
+
+  const datosProducto = await unaFila<{ producto: string; negocio: string }>(
+    `SELECT p.nombre AS producto, b.nombre AS negocio
+       FROM products p, businesses b WHERE p.id = $1 AND b.id = $2`,
+    [productId, businessId]
+  );
+
+  revalidatePath("/stock");
+  revalidatePath(`/clientes/${businessId}`);
+  await avisar(`"${datosProducto?.producto ?? "Producto"}" asignado a ${datosProducto?.negocio ?? "el cliente"}.`);
 }

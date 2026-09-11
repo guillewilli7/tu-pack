@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { consultar, unaFila } from "@/lib/db";
 import { pedirSesion } from "@/lib/auth";
+import { avisar } from "@/lib/avisos";
 
 const refrescar = (id: number | string) => {
   revalidatePath(`/clientes/${id}`);
@@ -32,6 +33,7 @@ export async function crearNegocio(datos: FormData) {
   // Todo negocio arranca con su sucursal principal.
   await consultar("INSERT INTO clients (business_id) VALUES ($1)", [id]);
   revalidatePath("/clientes");
+  await avisar(`Cliente "${nombre}" creado.`);
   redirect(`/clientes/${id}`);
 }
 
@@ -42,12 +44,14 @@ export async function guardarNegocio(id: number, datos: FormData) {
     [String(datos.get("nombre") ?? "").trim(), String(datos.get("notas") ?? "").trim() || null, id]
   );
   refrescar(id);
+  await avisar("Cliente guardado.");
 }
 
 export async function cambiarEstadoNegocio(id: number, activo: boolean) {
   await pedirSesion();
   await consultar("UPDATE businesses SET activo=$1, updated_at=NOW() WHERE id=$2", [activo, id]);
   refrescar(id);
+  await avisar(activo ? "Cliente reactivado." : "Cliente dado de baja.");
 }
 
 /* ── Sucursales ─────────────────────────────────────────────────────────── */
@@ -58,6 +62,7 @@ export async function agregarSucursal(businessId: number, datos: FormData) {
     businessId, String(datos.get("sucursal") ?? "").trim() || null,
   ]);
   refrescar(businessId);
+  await avisar("Sucursal agregada.");
 }
 
 export async function guardarSucursal(businessId: number, sucursalId: number, datos: FormData) {
@@ -71,6 +76,8 @@ export async function guardarSucursal(businessId: number, sucursalId: number, da
      t("horario_entrega"), t("info_cliente"), datos.get("activo") === "true", sucursalId, businessId]
   );
   refrescar(businessId);
+  revalidatePath("/stock");
+  await avisar("Sucursal guardada.");
 }
 
 export async function agregarTelefono(businessId: number, sucursalId: number, datos: FormData) {
@@ -81,12 +88,14 @@ export async function agregarTelefono(businessId: number, sucursalId: number, da
     sucursalId, phone, String(datos.get("label") ?? "").trim() || null,
   ]);
   refrescar(businessId);
+  await avisar("Teléfono agregado.");
 }
 
 export async function bajaTelefono(businessId: number, telefonoId: number) {
   await pedirSesion();
   await consultar("UPDATE client_phones SET activo=false WHERE id=$1", [telefonoId]);
   refrescar(businessId);
+  await avisar("Teléfono dado de baja.");
 }
 
 /* ── Productos del negocio (precio y stock) ─────────────────────────────── */
@@ -94,7 +103,10 @@ export async function bajaTelefono(businessId: number, telefonoId: number) {
 export async function agregarProductoANegocio(businessId: number, datos: FormData) {
   await pedirSesion();
   const productId = Number(datos.get("product_id"));
-  if (!productId) return;
+  if (!productId) {
+    await avisar("Elegí un producto para agregar.", "peligro");
+    return;
+  }
   const precio = String(datos.get("precio") ?? "").trim();
   await consultar(
     `INSERT INTO business_products (business_id, product_id, precio, stock)
@@ -107,6 +119,8 @@ export async function agregarProductoANegocio(businessId: number, datos: FormDat
      parseInt(String(datos.get("stock") ?? "0"), 10) || 0]
   );
   refrescar(businessId);
+  revalidatePath("/stock");
+  await avisar("Producto agregado al cliente.");
 }
 
 export async function guardarPrecioYStock(
@@ -125,6 +139,7 @@ export async function guardarPrecioYStock(
   ]);
   refrescar(businessId);
   revalidatePath("/stock");
+  await avisar("Precio y stock guardados.");
 }
 
 export async function cambiarEstadoProductoDeNegocio(businessId: number, bpId: number, activo: boolean) {
@@ -135,6 +150,8 @@ export async function cambiarEstadoProductoDeNegocio(businessId: number, bpId: n
     [activo, bpId, businessId]
   );
   refrescar(businessId);
+  revalidatePath("/stock");
+  await avisar(activo ? "Producto reactivado en el cliente." : "Producto quitado del cliente.");
 }
 
 /* ── Cuenta corriente ───────────────────────────────────────────────────── */
@@ -143,7 +160,10 @@ export async function agregarMovimiento(businessId: number, datos: FormData) {
   const sesion = await pedirSesion();
   const descripcion = String(datos.get("descripcion") ?? "").trim();
   const monto = parseFloat(String(datos.get("monto") ?? ""));
-  if (!descripcion || Number.isNaN(monto) || monto === 0) return;
+  if (!descripcion || Number.isNaN(monto) || monto === 0) {
+    await avisar("El movimiento necesita descripción y un monto distinto de cero.", "peligro");
+    return;
+  }
 
   const tipo = String(datos.get("tipo") ?? "ajuste");
   // Un pago siempre resta y un cargo siempre suma, sin importar cómo venga
@@ -160,6 +180,7 @@ export async function agregarMovimiento(businessId: number, datos: FormData) {
   );
   refrescar(businessId);
   revalidatePath("/cuentas");
+  await avisar("Movimiento registrado.");
 }
 
 export async function anularMovimiento(businessId: number, movimientoId: number, anular: boolean) {
@@ -172,4 +193,5 @@ export async function anularMovimiento(businessId: number, movimientoId: number,
   );
   refrescar(businessId);
   revalidatePath("/cuentas");
+  await avisar(anular ? "Movimiento anulado." : "Movimiento restaurado.");
 }

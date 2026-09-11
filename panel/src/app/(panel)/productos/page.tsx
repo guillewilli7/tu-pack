@@ -18,13 +18,18 @@ export default async function Productos({
   let where = `WHERE ${ESTADOS[clave]}`;
   if (q) { params.push(`%${q}%`); where += ` AND (nombre ILIKE $1 OR codigo_prod ILIKE $1)`; }
 
-  const productos = await consultar<ProductoCatalogo>(
-    `SELECT p.id, p.codigo_prod, p.nombre, p.descripcion, p.unidad, p.costo, p.activo,
-            (SELECT count(*) FROM business_products bp WHERE bp.product_id = p.id AND bp.activo) AS negocios
-       FROM products p ${where.replace("WHERE activo", "WHERE p.activo").replace("WHERE NOT activo", "WHERE NOT p.activo")}
-      ORDER BY p.nombre`,
-    params
-  );
+  const [productos, negocios] = await Promise.all([
+    consultar<ProductoCatalogo>(
+      `SELECT p.id, p.codigo_prod, p.nombre, p.descripcion, p.unidad, p.costo, p.activo,
+              (SELECT count(*) FROM business_products bp WHERE bp.product_id = p.id AND bp.activo) AS negocios
+         FROM products p ${where.replace("WHERE activo", "WHERE p.activo").replace("WHERE NOT activo", "WHERE NOT p.activo")}
+        ORDER BY p.nombre`,
+      params
+    ),
+    consultar<{ id: number; nombre: string }>(
+      "SELECT id, nombre FROM businesses WHERE activo ORDER BY nombre"
+    ),
+  ]);
 
   return (
     <>
@@ -44,13 +49,32 @@ export default async function Productos({
       </form>
 
       <Tarjeta titulo="Nuevo producto">
-        <form action={crearProducto} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[130px_1fr_1fr_110px_110px_auto] lg:items-end">
-          <Campo etiqueta="Código" name="codigo_prod" placeholder="P-0123" />
-          <Campo etiqueta="Nombre" name="nombre" required />
-          <Campo etiqueta="Descripción" name="descripcion" />
-          <Campo etiqueta="Unidad" name="unidad" defaultValue="unidad" />
-          <Campo etiqueta="Costo" name="costo" type="number" step="0.01" defaultValue={0} />
-          <Boton variante="primario" type="submit">Crear</Boton>
+        <form action={crearProducto} className="flex flex-col gap-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[130px_1fr_1fr_110px_110px]">
+            <Campo etiqueta="Código" name="codigo_prod" placeholder="P-0123" />
+            <Campo etiqueta="Nombre" name="nombre" required />
+            <Campo etiqueta="Descripción" name="descripcion" />
+            <Campo etiqueta="Unidad" name="unidad" defaultValue="unidad" />
+            <Campo etiqueta="Costo" name="costo" type="number" step="0.01" defaultValue={0} />
+          </div>
+
+          <div className="rounded-xl border border-borde bg-superficie-2 p-4 flex flex-col gap-3">
+            <p className="text-[13px] text-texto-suave">
+              Un producto recién creado no aparece en Stock hasta que es de algún cliente.
+              Asignalo acá y ya queda con su stock cargado.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_130px_130px_auto] lg:items-end">
+              <Selector etiqueta="Asignar a cliente (opcional)" name="business_id" defaultValue="">
+                <option value="">No asignar por ahora</option>
+                {negocios.map((n) => (
+                  <option key={n.id} value={n.id}>{n.nombre}</option>
+                ))}
+              </Selector>
+              <Campo etiqueta="Precio" name="precio" type="number" step="0.01" placeholder="a definir" />
+              <Campo etiqueta="Stock inicial" name="stock" type="number" defaultValue={0} />
+              <Boton variante="primario" type="submit">Crear producto</Boton>
+            </div>
+          </div>
         </form>
       </Tarjeta>
 

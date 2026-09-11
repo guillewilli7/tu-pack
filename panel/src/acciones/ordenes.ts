@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { consultar, unaFila } from "@/lib/db";
 import { pedirSesion } from "@/lib/auth";
 import { notificarPedidoNuevo } from "@/lib/pedidos";
+import { avisar } from "@/lib/avisos";
 
 export type LineaPedido = { product_id: number; cantidad: number; precio_unitario: number };
 
@@ -63,6 +64,7 @@ export async function crearOrden(datos: {
 
   notificarPedidoNuevo(fila!.id);
   revalidatePath("/ordenes");
+  await avisar(`Orden #${fila!.id} creada.`);
   redirect(`/ordenes/${fila!.id}`);
 }
 
@@ -78,6 +80,8 @@ export async function guardarLineas(ordenId: number, lineas: LineaPedido[]) {
     [JSON.stringify(items), total, ordenId]
   );
   revalidatePath(`/ordenes/${ordenId}`);
+  revalidatePath("/ordenes");
+  await avisar("Líneas de la orden guardadas.");
 }
 
 const SIGUIENTE: Record<string, string> = { pendiente: "en_proceso", en_proceso: "completada" };
@@ -98,25 +102,32 @@ export async function accionOrden(ordenId: number, accion: string, valor?: strin
     throw new Error("La orden está eliminada: restaurala primero.");
   }
 
+  let mensaje: string;
+
   if (accion === "avanzar") {
     const proximo = SIGUIENTE[actual.status];
     if (!proximo) throw new Error(`No se puede avanzar desde "${actual.status}".`);
     await consultar("UPDATE orders SET status=$1, updated_at=NOW() WHERE id=$2", [proximo, ordenId]);
+    mensaje = `Orden #${ordenId} pasó a ${proximo.replace("_", " ")}.`;
 
   } else if (accion === "retroceder") {
     const previo = ANTERIOR[actual.status];
     if (!previo) throw new Error(`No se puede volver atrás desde "${actual.status}".`);
     await consultar("UPDATE orders SET status=$1, updated_at=NOW() WHERE id=$2", [previo, ordenId]);
+    mensaje = `Orden #${ordenId} volvió a ${previo.replace("_", " ")}.`;
 
   } else if (accion === "cancelar") {
     await consultar("UPDATE orders SET status='cancelado', updated_at=NOW() WHERE id=$1", [ordenId]);
+    mensaje = `Orden #${ordenId} cancelada.`;
 
   } else if (accion === "reabrir") {
     await consultar("UPDATE orders SET status='pendiente', updated_at=NOW() WHERE id=$1", [ordenId]);
+    mensaje = `Orden #${ordenId} reabierta.`;
 
   } else if (accion === "total") {
     await consultar("UPDATE orders SET total=$1, updated_at=NOW() WHERE id=$2",
       [parseFloat(valor ?? "0") || 0, ordenId]);
+    mensaje = "Total actualizado.";
 
   } else if (accion === "eliminar") {
     // Eliminar = cancelar (devuelve stock y saca la deuda) + esconder.
@@ -126,6 +137,7 @@ export async function accionOrden(ordenId: number, accion: string, valor?: strin
       [ordenId, sesion.nombre || sesion.email]
     );
     revalidatePath("/ordenes");
+    await avisar(`Orden #${ordenId} eliminada.`);
     redirect("/ordenes?estado=eliminadas");
 
   } else if (accion === "restaurar") {
@@ -133,10 +145,12 @@ export async function accionOrden(ordenId: number, accion: string, valor?: strin
       `UPDATE orders SET eliminada=false, eliminada_at=NULL, eliminada_por=NULL,
               updated_at=NOW() WHERE id=$1`, [ordenId]
     );
+    mensaje = `Orden #${ordenId} restaurada.`;
   } else {
     throw new Error("Acción desconocida.");
   }
 
   revalidatePath("/ordenes");
   revalidatePath(`/ordenes/${ordenId}`);
+  await avisar(mensaje);
 }
