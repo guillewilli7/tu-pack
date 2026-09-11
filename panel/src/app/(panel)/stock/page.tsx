@@ -2,7 +2,7 @@ import { consultar, unaFila } from "@/lib/db";
 import { duenosDeDeposito, etiquetaDeposito } from "@/lib/consultas";
 import { ajustarStock, asignarProducto } from "@/acciones/stock";
 import { FilaStock, type FilaStockDatos } from "@/componentes/fila-stock";
-import { Tarjeta, Tabla, Th, Td, Vacio, Titulo, Campo, Boton, BotonLink, Selector, Indicador } from "@/componentes/ui";
+import { Tarjeta, Tabla, Th, Vacio, Titulo, Campo, Boton, BotonLink, Selector, Indicador } from "@/componentes/ui";
 
 export const metadata = { title: "Stock" };
 
@@ -111,44 +111,37 @@ export default async function Stock({
           <div className="px-5 py-3 text-sm text-texto-suave border-b border-borde bg-alerta-suave/40">
             Estos productos están en el catálogo pero no son de ningún cliente todavía, por eso
             no tienen stock. Elegí el cliente y cargales el stock inicial para que aparezcan
-            en la tabla de abajo.
+            en la tabla de abajo. <strong>Avisar bajo</strong> es el mínimo: cuando el stock cae
+            por debajo, sale un mail de alerta. Si lo dejás vacío, ese producto nunca avisa.
           </div>
-          <Tabla>
-            <thead>
-              <tr>
-                <Th>Producto</Th>
-                <Th className="w-[560px]">Asignar a cliente</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {sinAsignar.map((p) => (
-                <tr key={p.id} className="hover:bg-superficie-2 transition">
-                  <Td>
-                    <span className="font-medium">{p.nombre}</span>
-                    {p.codigo_prod && (
-                      <span className="ml-2 text-xs text-texto-suave num">{p.codigo_prod}</span>
-                    )}
-                  </Td>
-                  <Td>
-                    <form action={asignarProducto} className="flex items-end gap-2 justify-end">
-                      <input type="hidden" name="product_id" value={p.id} />
-                      <Selector name="business_id" className="w-64" defaultValue="">
-                        <option value="">Elegí un cliente…</option>
-                        {negocios.map((n) => (
-                          <option key={n.id} value={n.id}>{etiquetaDeposito(n)}</option>
-                        ))}
-                      </Selector>
-                      <Campo name="precio" type="number" step="0.01" placeholder="precio"
-                             className="w-28 text-right num" />
-                      <Campo name="stock" type="number" defaultValue={0}
-                             className="w-24 text-right num" />
-                      <Boton variante="primario" type="submit">Asignar</Boton>
-                    </form>
-                  </Td>
-                </tr>
-              ))}
-            </tbody>
-          </Tabla>
+          <div className="divide-y divide-borde">
+            {sinAsignar.map((p) => (
+              <form key={p.id} action={asignarProducto} className="px-5 py-4 flex flex-col gap-3">
+                <div>
+                  <span className="font-medium">{p.nombre}</span>
+                  {p.codigo_prod && (
+                    <span className="ml-2 text-xs text-texto-suave num">{p.codigo_prod}</span>
+                  )}
+                </div>
+                <input type="hidden" name="product_id" value={p.id} />
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_130px_130px_130px_auto] lg:items-end">
+                  <Selector etiqueta="Cliente" name="business_id" defaultValue="">
+                    <option value="">Elegí un cliente…</option>
+                    {negocios.map((n) => (
+                      <option key={n.id} value={n.id}>{etiquetaDeposito(n)}</option>
+                    ))}
+                  </Selector>
+                  <Campo etiqueta="Precio por unidad" name="precio" type="number" step="0.01"
+                         placeholder="a definir" className="text-right num" />
+                  <Campo etiqueta="Stock inicial" name="stock" type="number" defaultValue={0}
+                         className="text-right num" />
+                  <Campo etiqueta="Avisar bajo" name="stock_minimo" type="number"
+                         placeholder="sin aviso" className="text-right num" />
+                  <Boton variante="primario" type="submit">Asignar</Boton>
+                </div>
+              </form>
+            ))}
+          </div>
         </Tarjeta>
       )}
 

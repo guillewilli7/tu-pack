@@ -22,14 +22,16 @@ export async function crearProducto(datos: FormData) {
   const businessId = Number(datos.get("business_id"));
   if (businessId) {
     const precio = t("precio");
+    const minimo = t("stock_minimo");
     await consultar(
-      `INSERT INTO business_products (business_id, product_id, precio, stock)
-       VALUES (tupack_stock_owner($1), $2, $3, $4)
+      `INSERT INTO business_products (business_id, product_id, precio, stock, stock_minimo)
+       VALUES (tupack_stock_owner($1), $2, $3, $4, $5)
        ON CONFLICT (business_id, product_id) DO UPDATE
           SET activo = true, precio = COALESCE(EXCLUDED.precio, business_products.precio),
+              stock_minimo = COALESCE(EXCLUDED.stock_minimo, business_products.stock_minimo),
               updated_at = NOW()`,
       [businessId, creado!.id, precio === "" ? null : parseFloat(precio),
-       parseInt(t("stock"), 10) || 0]
+       parseInt(t("stock"), 10) || 0, minimo === "" ? null : parseInt(minimo, 10)]
     );
     const dueno = await unaFila<{ nombre: string; locales: string }>(
       `SELECT d.nombre,

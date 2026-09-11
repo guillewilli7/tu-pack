@@ -60,17 +60,21 @@ export default async function Productos({
           <div className="rounded-xl border border-borde bg-superficie-2 p-4 flex flex-col gap-3">
             <p className="text-[13px] text-texto-suave">
               Un producto recién creado no aparece en Stock hasta que es de algún cliente.
-              Asignalo acá y ya queda con su stock cargado.
+              Asignalo acá y ya queda con su stock cargado. <strong>Avisar bajo</strong> es el
+              mínimo: cuando el stock cae por debajo sale un mail de alerta, y si lo dejás
+              vacío ese producto nunca avisa.
             </p>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_130px_130px_auto] lg:items-end">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_130px_130px_130px_auto] lg:items-end">
               <Selector etiqueta="Asignar a cliente (opcional)" name="business_id" defaultValue="">
                 <option value="">No asignar por ahora</option>
                 {negocios.map((n) => (
                   <option key={n.id} value={n.id}>{etiquetaDeposito(n)}</option>
                 ))}
               </Selector>
-              <Campo etiqueta="Precio" name="precio" type="number" step="0.01" placeholder="a definir" />
+              <Campo etiqueta="Precio por unidad" name="precio" type="number" step="0.01" placeholder="a definir" />
               <Campo etiqueta="Stock inicial" name="stock" type="number" defaultValue={0} />
+              <Campo etiqueta="Avisar bajo" name="stock_minimo" type="number"
+                     placeholder="sin aviso" />
               <Boton variante="primario" type="submit">Crear producto</Boton>
             </div>
           </div>
