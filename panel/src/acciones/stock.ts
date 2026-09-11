@@ -49,13 +49,20 @@ export async function asignarProducto(datos: FormData) {
      parseInt(String(datos.get("stock") ?? "0"), 10) || 0]
   );
 
-  const datosProducto = await unaFila<{ producto: string; negocio: string }>(
-    `SELECT p.nombre AS producto, b.nombre AS negocio
-       FROM products p, businesses b WHERE p.id = $1 AND b.id = $2`,
+  const info = await unaFila<{ producto: string; dueno: string; locales: string }>(
+    `SELECT p.nombre AS producto, d.nombre AS dueno,
+            (SELECT count(*) FROM businesses o
+              WHERE o.stock_owner_id = d.id AND o.id <> d.id AND o.activo) AS locales
+       FROM products p, businesses d
+      WHERE p.id = $1 AND d.id = tupack_stock_owner($2)`,
     [productId, businessId]
   );
 
   revalidatePath("/stock");
   revalidatePath(`/clientes/${businessId}`);
-  await avisar(`"${datosProducto?.producto ?? "Producto"}" asignado a ${datosProducto?.negocio ?? "el cliente"}.`);
+  const locales = Number(info?.locales ?? 0);
+  await avisar(
+    `"${info?.producto ?? "Producto"}" asignado a ${info?.dueno ?? "el cliente"}` +
+    (locales > 0 ? `, y queda para sus ${locales + 1} locales.` : ".")
+  );
 }

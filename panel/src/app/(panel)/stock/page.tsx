@@ -1,4 +1,5 @@
 import { consultar, unaFila } from "@/lib/db";
+import { duenosDeDeposito, etiquetaDeposito } from "@/lib/consultas";
 import { ajustarStock, asignarProducto } from "@/acciones/stock";
 import { FilaStock, type FilaStockDatos } from "@/componentes/fila-stock";
 import { Tarjeta, Tabla, Th, Td, Vacio, Titulo, Campo, Boton, BotonLink, Selector, Indicador } from "@/componentes/ui";
@@ -56,9 +57,7 @@ export default async function Stock({
         ORDER BY p.nombre LIMIT 25`,
       q ? [`%${q}%`] : []
     ),
-    consultar<{ id: number; nombre: string }>(
-      "SELECT id, nombre FROM businesses WHERE activo ORDER BY nombre"
-    ),
+    duenosDeDeposito(),
   ]);
 
   const tarjetas = [
@@ -133,10 +132,10 @@ export default async function Stock({
                   <Td>
                     <form action={asignarProducto} className="flex items-end gap-2 justify-end">
                       <input type="hidden" name="product_id" value={p.id} />
-                      <Selector name="business_id" className="w-52" defaultValue="">
+                      <Selector name="business_id" className="w-64" defaultValue="">
                         <option value="">Elegí un cliente…</option>
                         {negocios.map((n) => (
-                          <option key={n.id} value={n.id}>{n.nombre}</option>
+                          <option key={n.id} value={n.id}>{etiquetaDeposito(n)}</option>
                         ))}
                       </Selector>
                       <Campo name="precio" type="number" step="0.01" placeholder="precio"

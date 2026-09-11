@@ -127,3 +127,27 @@ export async function saldosDeNegocio(businessId: number) {
   );
   return { uyu: Number(fila?.uyu ?? 0), usd: Number(fila?.usd ?? 0) };
 }
+
+export type DuenoDeposito = { id: number; nombre: string; locales: string };
+
+/**
+ * Para elegir a quién asignarle un producto sólo sirven los dueños de
+ * depósito: los locales que comparten stock resuelven al mismo lugar, así
+ * que ofrecerlos sería repetir la misma opción varias veces.
+ */
+export async function duenosDeDeposito() {
+  return consultar<DuenoDeposito>(
+    `SELECT b.id, b.nombre,
+            (SELECT count(*) FROM businesses o
+              WHERE o.stock_owner_id = b.id AND o.id <> b.id AND o.activo) AS locales
+       FROM businesses b
+      WHERE b.activo AND COALESCE(b.stock_owner_id, b.id) = b.id
+      ORDER BY b.nombre`
+  );
+}
+
+/** "DESMADRE (depósito de 10 locales)" cuando comparte; el nombre solo si no. */
+export function etiquetaDeposito(n: DuenoDeposito) {
+  const locales = Number(n.locales);
+  return locales > 0 ? `${n.nombre} (depósito de ${locales + 1} locales)` : n.nombre;
+}

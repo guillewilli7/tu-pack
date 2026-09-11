@@ -31,12 +31,20 @@ export async function crearProducto(datos: FormData) {
       [businessId, creado!.id, precio === "" ? null : parseFloat(precio),
        parseInt(t("stock"), 10) || 0]
     );
-    const negocio = await unaFila<{ nombre: string }>(
-      "SELECT nombre FROM businesses WHERE id = $1", [businessId]
+    const dueno = await unaFila<{ nombre: string; locales: string }>(
+      `SELECT d.nombre,
+              (SELECT count(*) FROM businesses o
+                WHERE o.stock_owner_id = d.id AND o.id <> d.id AND o.activo) AS locales
+         FROM businesses d WHERE d.id = tupack_stock_owner($1)`,
+      [businessId]
     );
     revalidatePath("/stock");
     revalidatePath(`/clientes/${businessId}`);
-    await avisar(`"${nombre}" creado y asignado a ${negocio?.nombre ?? "el cliente"}.`);
+    const locales = Number(dueno?.locales ?? 0);
+    await avisar(
+      `"${nombre}" creado y asignado a ${dueno?.nombre ?? "el cliente"}` +
+      (locales > 0 ? `, y queda para sus ${locales + 1} locales.` : ".")
+    );
   } else {
     await avisar(`"${nombre}" creado. Asignalo a un cliente para poder cargarle stock.`);
   }

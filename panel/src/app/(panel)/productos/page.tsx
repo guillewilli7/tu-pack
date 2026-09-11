@@ -1,4 +1,5 @@
 import { consultar } from "@/lib/db";
+import { duenosDeDeposito, etiquetaDeposito } from "@/lib/consultas";
 import { cambiarEstadoProducto, crearProducto, guardarProducto } from "@/acciones/productos";
 import { FilaCatalogo, type ProductoCatalogo } from "@/componentes/producto-catalogo";
 import { Tarjeta, Tabla, Th, Vacio, BotonLink, Boton, Titulo, Campo, Selector } from "@/componentes/ui";
@@ -26,9 +27,7 @@ export default async function Productos({
         ORDER BY p.nombre`,
       params
     ),
-    consultar<{ id: number; nombre: string }>(
-      "SELECT id, nombre FROM businesses WHERE activo ORDER BY nombre"
-    ),
+    duenosDeDeposito(),
   ]);
 
   return (
@@ -67,7 +66,7 @@ export default async function Productos({
               <Selector etiqueta="Asignar a cliente (opcional)" name="business_id" defaultValue="">
                 <option value="">No asignar por ahora</option>
                 {negocios.map((n) => (
-                  <option key={n.id} value={n.id}>{n.nombre}</option>
+                  <option key={n.id} value={n.id}>{etiquetaDeposito(n)}</option>
                 ))}
               </Selector>
               <Campo etiqueta="Precio" name="precio" type="number" step="0.01" placeholder="a definir" />

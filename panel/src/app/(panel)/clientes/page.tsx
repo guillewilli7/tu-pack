@@ -11,6 +11,7 @@ const ESTADOS: Record<string, string> = {
 type Fila = {
   id: number; nombre: string; activo: boolean; sucursales: string; productos: string;
   sin_stock: string; saldo: string; saldo_usd: string;
+  deposito_nombre: string | null; locales: string;
 };
 
 export default async function Clientes({
@@ -31,8 +32,13 @@ export default async function Clientes({
               WHERE bp.business_id = tupack_stock_owner(b.id) AND bp.activo) AS productos,
             (SELECT count(*) FROM business_products bp
               WHERE bp.business_id = tupack_stock_owner(b.id) AND bp.activo AND bp.stock <= 0) AS sin_stock,
-            tupack_saldo(b.id,'UYU') AS saldo, tupack_saldo(b.id,'USD') AS saldo_usd
-       FROM businesses b ${where} ORDER BY b.nombre`,
+            tupack_saldo(b.id,'UYU') AS saldo, tupack_saldo(b.id,'USD') AS saldo_usd,
+            d.nombre AS deposito_nombre,
+            (SELECT count(*) FROM businesses o
+              WHERE o.stock_owner_id = b.id AND o.id <> b.id AND o.activo) AS locales
+       FROM businesses b
+       LEFT JOIN businesses d ON d.id = b.stock_owner_id AND d.id <> b.id
+       ${where} ORDER BY b.nombre`,
     params
   );
 
@@ -74,9 +80,14 @@ export default async function Clientes({
                 <Td>
                   <Link href={`/clientes/${c.id}`} className="flex items-center gap-3">
                     <Inicial nombre={c.nombre} />
-                    <span className="min-w-0 flex items-center gap-2">
+                    <span className="min-w-0 flex items-center gap-2 flex-wrap">
                       <span className="truncate font-medium">{c.nombre}</span>
                       {!c.activo && <Etiqueta tono="peligro">Inactivo</Etiqueta>}
+                      {c.deposito_nombre ? (
+                        <Etiqueta tono="marca">stock de {c.deposito_nombre}</Etiqueta>
+                      ) : Number(c.locales) > 0 ? (
+                        <Etiqueta tono="marca">depósito de {Number(c.locales) + 1} locales</Etiqueta>
+                      ) : null}
                     </span>
                   </Link>
                 </Td>
