@@ -9,6 +9,7 @@ import {
   guardarPrecioYStock, guardarSucursal,
 } from "@/acciones/clientes";
 import { FilaProducto, type ProductoNegocio } from "@/componentes/producto-negocio";
+import { BuscadorProducto } from "@/componentes/buscador-producto";
 import { BotonAccion } from "@/componentes/boton-accion";
 import {
   Tarjeta, Titulo, BotonLink, Boton, Campo, Selector, Etiqueta, Tabla, Th, Td, Vacio, Saldo, Aviso,
@@ -225,6 +226,7 @@ export default async function DetalleCliente({ params }: { params: Promise<{ id:
       {/* ── Productos y stock ─────────────────────────────────────────── */}
       <Tarjeta
         ajustado
+        desborde
         titulo={
           <span className="flex items-center gap-2">
             Productos y stock <span className="text-texto-suave font-normal">({activos.length})</span>
@@ -273,12 +275,7 @@ export default async function DetalleCliente({ params }: { params: Promise<{ id:
 
         <form action={agregarProductoANegocio.bind(null, id)}
               className="p-5 grid gap-3 sm:grid-cols-[1fr_130px_130px_auto] sm:items-end border-t border-borde">
-          <Selector etiqueta="Agregar producto" name="product_id" required>
-            <option value="">— Elegir del catálogo —</option>
-            {catalogo.map((p) => (
-              <option key={p.id} value={p.id}>{p.nombre}{p.codigo_prod ? ` (${p.codigo_prod})` : ""}</option>
-            ))}
-          </Selector>
+          <BuscadorProducto catalogo={catalogo} />
           <Campo etiqueta="Precio" name="precio" type="number" step="0.01" placeholder="a definir" />
           <Campo etiqueta="Stock inicial" name="stock" type="number" defaultValue={0} />
           <Boton variante="primario" type="submit">Agregar</Boton>
