@@ -70,14 +70,31 @@ export async function guardarSucursal(businessId: number, sucursalId: number, da
   const t = (campo: string) => String(datos.get(campo) ?? "").trim() || null;
   await consultar(
     `UPDATE clients SET sucursal=$1, razon_social=$2, rut=$3, direccion_facturacion=$4,
-            direccion_entrega=$5, horario_entrega=$6, info_cliente=$7, activo=$8, updated_at=NOW()
-      WHERE id=$9 AND business_id=$10`,
+            direccion_entrega=$5, horario_entrega=$6, info_cliente=$7, updated_at=NOW()
+      WHERE id=$8 AND business_id=$9`,
     [t("sucursal"), t("razon_social"), t("rut"), t("direccion_facturacion"), t("direccion_entrega"),
-     t("horario_entrega"), t("info_cliente"), datos.get("activo") === "true", sucursalId, businessId]
+     t("horario_entrega"), t("info_cliente"), sucursalId, businessId]
   );
   refrescar(businessId);
   revalidatePath("/stock");
   await avisar("Sucursal guardada.");
+}
+
+/**
+ * Baja lógica: las órdenes de la sucursal apuntan a ella con ON DELETE SET NULL,
+ * así que borrarla de verdad las dejaría sin saber de qué local eran.
+ */
+export async function cambiarEstadoSucursal(
+  businessId: number, sucursalId: number, activo: boolean
+) {
+  await pedirSesion();
+  await consultar(
+    "UPDATE clients SET activo=$1, updated_at=NOW() WHERE id=$2 AND business_id=$3",
+    [activo, sucursalId, businessId]
+  );
+  refrescar(businessId);
+  revalidatePath("/stock");
+  await avisar(activo ? "Sucursal reactivada." : "Sucursal dada de baja.");
 }
 
 export async function agregarTelefono(businessId: number, sucursalId: number, datos: FormData) {

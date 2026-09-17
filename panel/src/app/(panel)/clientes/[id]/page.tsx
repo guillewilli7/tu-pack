@@ -5,8 +5,8 @@ import { saldosDeNegocio } from "@/lib/consultas";
 import { fecha, pesos, ESTADOS_ORDEN, type EstadoOrden } from "@/lib/formato";
 import {
   agregarMovimiento, agregarProductoANegocio, agregarSucursal, agregarTelefono, anularMovimiento,
-  bajaTelefono, cambiarEstadoNegocio, cambiarEstadoProductoDeNegocio, guardarNegocio,
-  guardarPrecioYStock, guardarSucursal,
+  bajaTelefono, cambiarEstadoNegocio, cambiarEstadoProductoDeNegocio, cambiarEstadoSucursal,
+  guardarNegocio, guardarPrecioYStock, guardarSucursal,
 } from "@/acciones/clientes";
 import { FilaProducto, type ProductoNegocio } from "@/componentes/producto-negocio";
 import { BuscadorProducto } from "@/componentes/buscador-producto";
@@ -23,6 +23,7 @@ type Sucursal = {
   id: number; sucursal: string | null; razon_social: string | null; rut: string | null;
   direccion_facturacion: string | null; direccion_entrega: string | null;
   horario_entrega: string | null; info_cliente: string | null; activo: boolean;
+  ordenes: string;
 };
 type Telefono = { id: number; client_id: number; phone: string; label: string | null; activo: boolean };
 type Movimiento = {
@@ -50,7 +51,12 @@ export default async function DetalleCliente({ params }: { params: Promise<{ id:
   if (!negocio) notFound();
 
   const [sucursales, productos, catalogo, telefonos, movimientos, saldos, ordenes] = await Promise.all([
-    consultar<Sucursal>("SELECT * FROM clients WHERE business_id=$1 ORDER BY sucursal NULLS FIRST, id", [id]),
+    consultar<Sucursal>(
+      `SELECT c.*,
+              (SELECT count(*) FROM orders o WHERE o.client_id = c.id AND NOT o.eliminada) AS ordenes
+         FROM clients c WHERE c.business_id=$1
+        ORDER BY c.sucursal NULLS FIRST, c.id`, [id]
+    ),
     consultar<ProductoNegocio>(
       `SELECT bp.id AS bp_id, bp.product_id, bp.precio, bp.stock, bp.stock_minimo, bp.notas, bp.activo,
               p.nombre, p.codigo_prod
@@ -82,6 +88,8 @@ export default async function DetalleCliente({ params }: { params: Promise<{ id:
 
   const activos = productos.filter((p) => p.activo);
   const quitados = productos.filter((p) => !p.activo);
+  const activas = sucursales.filter((s) => s.activo);
+  const bajas = sucursales.filter((s) => !s.activo);
   const hoy = new Date().toISOString().slice(0, 10);
 
   return (
@@ -316,16 +324,19 @@ export default async function DetalleCliente({ params }: { params: Promise<{ id:
       )}
 
       {/* ── Sucursales ────────────────────────────────────────────────── */}
-      <Tarjeta titulo={<>Sucursales y facturación <span className="text-texto-suave font-normal">({sucursales.length})</span></>}>
+      <Tarjeta titulo={<>Sucursales y facturación <span className="text-texto-suave font-normal">({activas.length})</span></>}>
         <div className="flex flex-col gap-3">
-          {sucursales.map((s) => {
+          {!activas.length && (
+            <p className="text-sm text-texto-suave">Este cliente no tiene sucursales activas.</p>
+          )}
+          {activas.map((s) => {
             const tels = telefonos.filter((t) => t.client_id === s.id && t.activo);
+            const conOrdenes = Number(s.ordenes);
             return (
               <details key={s.id} className="rounded-lg border border-borde bg-superficie-2 overflow-hidden"
-                       open={sucursales.length === 1}>
+                       open={activas.length === 1}>
                 <summary className="flex items-center gap-2 px-4 py-3 cursor-pointer text-sm select-none">
                   <span className="font-medium">{s.sucursal || "Sucursal única"}</span>
-                  {!s.activo && <Etiqueta tono="peligro">Inactiva</Etiqueta>}
                   {!s.rut && <Etiqueta tono="alerta">sin facturación</Etiqueta>}
                   <span className="text-texto-suave truncate">
                     {[s.rut && `RUT ${s.rut}`, s.direccion_entrega,
@@ -336,17 +347,13 @@ export default async function DetalleCliente({ params }: { params: Promise<{ id:
                 <div className="border-t border-borde bg-superficie p-4">
                   <form action={guardarSucursal.bind(null, id, s.id)} className="grid gap-3 sm:grid-cols-2">
                     <Campo etiqueta="Sucursal" name="sucursal" defaultValue={s.sucursal ?? ""} placeholder="(única)" />
-                    <Selector etiqueta="Estado" name="activo" defaultValue={String(s.activo)}>
-                      <option value="true">Activa</option>
-                      <option value="false">Inactiva</option>
-                    </Selector>
                     <Campo etiqueta="Razón social" name="razon_social" defaultValue={s.razon_social ?? ""} />
                     <Campo etiqueta="RUT" name="rut" defaultValue={s.rut ?? ""} />
                     <Campo etiqueta="Dirección de facturación" name="direccion_facturacion" defaultValue={s.direccion_facturacion ?? ""} />
                     <Campo etiqueta="Dirección de entrega" name="direccion_entrega" defaultValue={s.direccion_entrega ?? ""} />
                     <Campo etiqueta="Horario de entrega" name="horario_entrega" defaultValue={s.horario_entrega ?? ""} />
                     <Campo etiqueta="Observaciones" name="info_cliente" defaultValue={(s.info_cliente ?? "").replace(/\n/g, " · ")} />
-                    <div className="sm:col-span-2">
+                    <div className="sm:col-span-2 flex flex-wrap gap-2">
                       <Boton variante="primario" medida="sm" type="submit">Guardar sucursal</Boton>
                     </div>
                   </form>
@@ -372,6 +379,27 @@ export default async function DetalleCliente({ params }: { params: Promise<{ id:
                       <Boton medida="md" type="submit">+ Agregar</Boton>
                     </form>
                   </div>
+
+                  <div className="mt-4 border-t border-borde pt-4 flex items-center gap-3 flex-wrap">
+                    <BotonAccion
+                      medida="sm"
+                      variante="peligro"
+                      confirmar={
+                        `¿Dar de baja la sucursal ${s.sucursal || "única"}?\n\n` +
+                        (conOrdenes
+                          ? `Sus ${conOrdenes} órden${conOrdenes > 1 ? "es" : ""} quedan como están. `
+                          : "") +
+                        "Deja de recibir pedidos y el agente de WhatsApp no la encuentra más. " +
+                        "Se puede reactivar cuando quieras."
+                      }
+                      accion={async () => { "use server"; await cambiarEstadoSucursal(id, s.id, false); }}
+                    >
+                      Dar de baja sucursal
+                    </BotonAccion>
+                    <span className="text-xs text-texto-suave">
+                      No se borra: queda abajo y se puede reactivar.
+                    </span>
+                  </div>
                 </div>
               </details>
             );
@@ -383,6 +411,33 @@ export default async function DetalleCliente({ params }: { params: Promise<{ id:
           <Boton variante="primario" type="submit">+ Agregar sucursal</Boton>
         </form>
       </Tarjeta>
+
+      {!!bajas.length && (
+        <Tarjeta titulo={<>Sucursales dadas de baja <span className="text-texto-suave font-normal">({bajas.length})</span></>}>
+          <div className="flex flex-col gap-2">
+            {bajas.map((s) => (
+              <div key={s.id} className="flex items-center gap-3 flex-wrap rounded-lg border border-borde
+                bg-superficie-2 px-4 py-3 text-sm">
+                <span className="font-medium">{s.sucursal || "Sucursal única"}</span>
+                <Etiqueta tono="peligro">De baja</Etiqueta>
+                <span className="text-texto-suave truncate">
+                  {[s.rut && `RUT ${s.rut}`, s.direccion_entrega,
+                    Number(s.ordenes) ? `${s.ordenes} órdenes` : null].filter(Boolean).join(" · ") || "sin datos"}
+                </span>
+                <span className="ml-auto">
+                  <BotonAccion
+                    medida="sm"
+                    variante="primario"
+                    accion={async () => { "use server"; await cambiarEstadoSucursal(id, s.id, true); }}
+                  >
+                    Reactivar
+                  </BotonAccion>
+                </span>
+              </div>
+            ))}
+          </div>
+        </Tarjeta>
+      )}
 
       {/* ── Últimas órdenes ───────────────────────────────────────────── */}
       <Tarjeta ajustado titulo="Últimas órdenes">
