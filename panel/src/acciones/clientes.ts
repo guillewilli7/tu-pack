@@ -81,20 +81,19 @@ export async function guardarSucursal(businessId: number, sucursalId: number, da
 }
 
 /**
- * Baja lógica: las órdenes de la sucursal apuntan a ella con ON DELETE SET NULL,
- * así que borrarla de verdad las dejaría sin saber de qué local eran.
+ * Para el usuario la sucursal desaparece, pero en la base sigue existiendo
+ * inactiva: sus órdenes apuntan a ella con ON DELETE SET NULL y un borrado
+ * real las dejaría sin saber de qué local eran. Recuperarla es un UPDATE.
  */
-export async function cambiarEstadoSucursal(
-  businessId: number, sucursalId: number, activo: boolean
-) {
+export async function eliminarSucursal(businessId: number, sucursalId: number) {
   await pedirSesion();
   await consultar(
-    "UPDATE clients SET activo=$1, updated_at=NOW() WHERE id=$2 AND business_id=$3",
-    [activo, sucursalId, businessId]
+    "UPDATE clients SET activo=false, updated_at=NOW() WHERE id=$1 AND business_id=$2",
+    [sucursalId, businessId]
   );
   refrescar(businessId);
   revalidatePath("/stock");
-  await avisar(activo ? "Sucursal reactivada." : "Sucursal dada de baja.");
+  await avisar("Sucursal eliminada.");
 }
 
 export async function agregarTelefono(businessId: number, sucursalId: number, datos: FormData) {

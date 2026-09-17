@@ -5,7 +5,7 @@ import { saldosDeNegocio } from "@/lib/consultas";
 import { fecha, pesos, ESTADOS_ORDEN, type EstadoOrden } from "@/lib/formato";
 import {
   agregarMovimiento, agregarProductoANegocio, agregarSucursal, agregarTelefono, anularMovimiento,
-  bajaTelefono, cambiarEstadoNegocio, cambiarEstadoProductoDeNegocio, cambiarEstadoSucursal,
+  bajaTelefono, cambiarEstadoNegocio, cambiarEstadoProductoDeNegocio, eliminarSucursal,
   guardarNegocio, guardarPrecioYStock, guardarSucursal,
 } from "@/acciones/clientes";
 import { FilaProducto, type ProductoNegocio } from "@/componentes/producto-negocio";
@@ -89,7 +89,6 @@ export default async function DetalleCliente({ params }: { params: Promise<{ id:
   const activos = productos.filter((p) => p.activo);
   const quitados = productos.filter((p) => !p.activo);
   const activas = sucursales.filter((s) => s.activo);
-  const bajas = sucursales.filter((s) => !s.activo);
   const hoy = new Date().toISOString().slice(0, 10);
 
   return (
@@ -380,25 +379,21 @@ export default async function DetalleCliente({ params }: { params: Promise<{ id:
                     </form>
                   </div>
 
-                  <div className="mt-4 border-t border-borde pt-4 flex items-center gap-3 flex-wrap">
+                  <div className="mt-4 border-t border-borde pt-4">
                     <BotonAccion
                       medida="sm"
                       variante="peligro"
                       confirmar={
-                        `¿Dar de baja la sucursal ${s.sucursal || "única"}?\n\n` +
+                        `¿Eliminar la sucursal ${s.sucursal || "única"}?\n\n` +
                         (conOrdenes
-                          ? `Sus ${conOrdenes} órden${conOrdenes > 1 ? "es" : ""} quedan como están. `
+                          ? `Sus ${conOrdenes} órden${conOrdenes > 1 ? "es" : ""} quedan en el historial. `
                           : "") +
-                        "Deja de recibir pedidos y el agente de WhatsApp no la encuentra más. " +
-                        "Se puede reactivar cuando quieras."
+                        "Deja de recibir pedidos y el agente de WhatsApp no la encuentra más."
                       }
-                      accion={async () => { "use server"; await cambiarEstadoSucursal(id, s.id, false); }}
+                      accion={async () => { "use server"; await eliminarSucursal(id, s.id); }}
                     >
-                      Dar de baja sucursal
+                      Eliminar sucursal
                     </BotonAccion>
-                    <span className="text-xs text-texto-suave">
-                      No se borra: queda abajo y se puede reactivar.
-                    </span>
                   </div>
                 </div>
               </details>
@@ -412,32 +407,6 @@ export default async function DetalleCliente({ params }: { params: Promise<{ id:
         </form>
       </Tarjeta>
 
-      {!!bajas.length && (
-        <Tarjeta titulo={<>Sucursales dadas de baja <span className="text-texto-suave font-normal">({bajas.length})</span></>}>
-          <div className="flex flex-col gap-2">
-            {bajas.map((s) => (
-              <div key={s.id} className="flex items-center gap-3 flex-wrap rounded-lg border border-borde
-                bg-superficie-2 px-4 py-3 text-sm">
-                <span className="font-medium">{s.sucursal || "Sucursal única"}</span>
-                <Etiqueta tono="peligro">De baja</Etiqueta>
-                <span className="text-texto-suave truncate">
-                  {[s.rut && `RUT ${s.rut}`, s.direccion_entrega,
-                    Number(s.ordenes) ? `${s.ordenes} órdenes` : null].filter(Boolean).join(" · ") || "sin datos"}
-                </span>
-                <span className="ml-auto">
-                  <BotonAccion
-                    medida="sm"
-                    variante="primario"
-                    accion={async () => { "use server"; await cambiarEstadoSucursal(id, s.id, true); }}
-                  >
-                    Reactivar
-                  </BotonAccion>
-                </span>
-              </div>
-            ))}
-          </div>
-        </Tarjeta>
-      )}
 
       {/* ── Últimas órdenes ───────────────────────────────────────────── */}
       <Tarjeta ajustado titulo="Últimas órdenes">
