@@ -1,6 +1,6 @@
 import { consultar, unaFila } from "@/lib/db";
 import { duenosDeDeposito, etiquetaDeposito } from "@/lib/consultas";
-import { ajustarStock, asignarProducto } from "@/acciones/stock";
+import { ajustarStock, ajustarStockGeneral, asignarProducto } from "@/acciones/stock";
 import { FilaStock, type FilaStockDatos } from "@/componentes/fila-stock";
 import { Tarjeta, Tabla, Th, Vacio, Titulo, Campo, Boton, BotonLink, Selector, Indicador } from "@/componentes/ui";
 
@@ -24,7 +24,7 @@ export default async function Stock({
   let where = `WHERE bp.activo AND p.activo AND ${FILTROS[clave]}`;
   if (q) { params.push(`%${q}%`); where += ` AND (b.nombre ILIKE $1 OR p.nombre ILIKE $1)`; }
 
-  const [filas, totales, sinAsignar, negocios] = await Promise.all([
+  const [filas, totales, sinAsignar, negocios, genericos] = await Promise.all([
     consultar<FilaStockDatos>(
       `SELECT bp.stock, bp.stock_minimo, bp.precio,
               b.id AS business_id, b.nombre AS negocio,
@@ -59,6 +59,18 @@ export default async function Stock({
       q ? [`%${q}%`] : []
     ),
     duenosDeDeposito(),
+    // El stock de un genérico es uno solo, de TuPack: vive en products y no
+    // en business_products, así que va en su propia tabla.
+    consultar<FilaStockDatos>(
+      `SELECT p.stock_general AS stock, p.stock_minimo_general AS stock_minimo,
+              p.precio_lista AS precio, p.id AS product_id, p.nombre AS producto,
+              p.unidad, 0 AS business_id, '' AS negocio, '0' AS locales_que_comparten
+         FROM products p
+        WHERE p.activo AND p.generico
+          ${q ? "AND (p.nombre ILIKE $1 OR p.codigo_prod ILIKE $1)" : ""}
+        ORDER BY p.nombre`,
+      q ? [`%${q}%`] : []
+    ),
   ]);
 
   const tarjetas = [
@@ -143,6 +155,37 @@ export default async function Stock({
               </form>
             ))}
           </div>
+        </Tarjeta>
+      )}
+
+      {genericos.length > 0 && (
+        <Tarjeta ajustado titulo={<>Productos genéricos <span className="text-texto-suave font-normal">({genericos.length})</span></>}>
+          <div className="px-5 py-3 text-sm text-texto-suave border-b border-borde bg-marca-suave/40">
+            Estos no son de ningún cliente: cualquiera los puede pedir y todos salen
+            del mismo stock, el de TuPack. Por eso van acá y no en la tabla de abajo.
+          </div>
+          <Tabla>
+            <thead>
+              <tr>
+                <Th>Producto</Th>
+                <Th className="w-28 text-right">Precio lista</Th>
+                <Th className="w-96 text-right">Stock / mínimo</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {genericos.map((g) => (
+                <FilaStock
+                  key={`gen-${g.product_id}`}
+                  f={g}
+                  sinCliente
+                  guardar={async (stock, minimo) => {
+                    "use server";
+                    await ajustarStockGeneral(g.product_id, stock, minimo);
+                  }}
+                />
+              ))}
+            </tbody>
+          </Tabla>
         </Tarjeta>
       )}
 

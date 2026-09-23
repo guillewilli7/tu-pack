@@ -25,6 +25,27 @@ export async function ajustarStock(
 }
 
 /**
+ * Ajusta el stock de un genérico. Es uno solo, de TuPack, porque el producto
+ * no es de ningún cliente: lo que se pide sale siempre del mismo pozo.
+ */
+export async function ajustarStockGeneral(
+  productId: number, stock: string, stockMinimo: string
+) {
+  const sesion = await pedirSesion();
+  await consultar(
+    "UPDATE products SET stock_minimo_general = $1 WHERE id = $2",
+    [stockMinimo === "" ? null : parseInt(stockMinimo, 10), productId]
+  );
+  await consultar("SELECT tupack_ajustar_stock_general($1,$2,$3)", [
+    productId, parseInt(stock, 10) || 0,
+    `Ajuste desde el panel (${sesion.nombre || sesion.email})`,
+  ]);
+  revalidatePath("/stock");
+  revalidatePath("/productos");
+  await avisar("Stock actualizado.");
+}
+
+/**
  * Asigna un producto del catálogo a un cliente y le deja el stock inicial.
  * Es la salida para los productos recién creados, que no aparecen en Stock
  * hasta que tienen cliente.

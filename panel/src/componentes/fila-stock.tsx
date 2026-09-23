@@ -11,10 +11,12 @@ export type FilaStockDatos = {
 };
 
 export function FilaStock({
-  f, guardar,
+  f, guardar, sinCliente = false,
 }: {
   f: FilaStockDatos;
   guardar: (stock: string, minimo: string) => Promise<void>;
+  /** Los genéricos no son de nadie: la fila arranca en el producto. */
+  sinCliente?: boolean;
 }) {
   const [stock, setStock] = useState(String(f.stock));
   const [minimo, setMinimo] = useState(f.stock_minimo == null ? "" : String(f.stock_minimo));
@@ -26,13 +28,15 @@ export function FilaStock({
 
   return (
     <tr className="hover:bg-superficie-2 transition">
-      <Td>
-        <Link href={`/clientes/${f.business_id}`} className="font-medium hover:text-marca">{f.negocio}</Link>
-        {Number(f.locales_que_comparten) > 0 && (
-          <span className="ml-2"><Etiqueta tono="marca">depósito de {f.locales_que_comparten} locales más</Etiqueta></span>
-        )}
-      </Td>
-      <Td>{f.producto}</Td>
+      {!sinCliente && (
+        <Td>
+          <Link href={`/clientes/${f.business_id}`} className="font-medium hover:text-marca">{f.negocio}</Link>
+          {Number(f.locales_que_comparten) > 0 && (
+            <span className="ml-2"><Etiqueta tono="marca">depósito de {f.locales_que_comparten} locales más</Etiqueta></span>
+          )}
+        </Td>
+      )}
+      <Td className={sinCliente ? "font-medium" : undefined}>{f.producto}</Td>
       <Td className="text-right num text-texto-suave">
         {f.precio == null ? <Etiqueta tono="alerta">sin precio</Etiqueta> : `$ ${Number(f.precio).toFixed(2)}`}
       </Td>
