@@ -1,4 +1,4 @@
-import { consultar } from "@/lib/db";
+import { consultar, unaFila } from "@/lib/db";
 import { duenosDeDeposito, etiquetaDeposito } from "@/lib/consultas";
 import { cambiarEstadoProducto, crearProducto, guardarProducto } from "@/acciones/productos";
 import { FilaCatalogo, type ProductoCatalogo } from "@/componentes/producto-catalogo";
@@ -19,15 +19,17 @@ export default async function Productos({
   let where = `WHERE ${ESTADOS[clave]}`;
   if (q) { params.push(`%${q}%`); where += ` AND (nombre ILIKE $1 OR codigo_prod ILIKE $1)`; }
 
-  const [productos, negocios] = await Promise.all([
+  const [productos, negocios, siguiente] = await Promise.all([
     consultar<ProductoCatalogo>(
       `SELECT p.id, p.codigo_prod, p.nombre, p.descripcion, p.unidad, p.costo, p.activo,
+              p.generico, p.precio_lista,
               (SELECT count(*) FROM business_products bp WHERE bp.product_id = p.id AND bp.activo) AS negocios
          FROM products p ${where.replace("WHERE activo", "WHERE p.activo").replace("WHERE NOT activo", "WHERE NOT p.activo")}
-        ORDER BY p.nombre`,
+        ORDER BY p.codigo_prod NULLS LAST`,
       params
     ),
     duenosDeDeposito(),
+    unaFila<{ siguiente: string }>("SELECT tupack_siguiente_codigo_prod() AS siguiente"),
   ]);
 
   return (
@@ -50,7 +52,8 @@ export default async function Productos({
       <Tarjeta titulo="Nuevo producto">
         <form action={crearProducto} className="flex flex-col gap-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[130px_1fr_1fr_110px_110px]">
-            <Campo etiqueta="Código" name="codigo_prod" placeholder="P-0123" />
+            <Campo etiqueta="Código" name="codigo_prod" placeholder={siguiente?.siguiente ?? "P-0001"}
+                   ayuda="Se asigna solo" />
             <Campo etiqueta="Nombre" name="nombre" required />
             <Campo etiqueta="Descripción" name="descripcion" />
             <Campo etiqueta="Unidad" name="unidad" defaultValue="unidad" />
@@ -58,8 +61,23 @@ export default async function Productos({
           </div>
 
           <div className="rounded-xl border border-borde bg-superficie-2 p-4 flex flex-col gap-3">
+            <label className="flex items-start gap-2.5 text-sm cursor-pointer">
+              <input type="checkbox" name="generico" value="true" className="mt-0.5 size-4 accent-[var(--marca)]" />
+              <span>
+                <strong>Producto genérico</strong> — lo puede pedir cualquier cliente sin tenerlo
+                asignado, como el papel film. En vez de cargarlo en cada sucursal, le ponés un
+                precio de lista acá y listo.
+              </span>
+            </label>
+            <div className="sm:max-w-[200px]">
+              <Campo etiqueta="Precio de lista" name="precio_lista" type="number" step="0.01"
+                     placeholder="solo genéricos" />
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-borde bg-superficie-2 p-4 flex flex-col gap-3">
             <p className="text-[13px] text-texto-suave">
-              Un producto recién creado no aparece en Stock hasta que es de algún cliente.
+              Un producto que no es genérico no aparece en Stock hasta que es de algún cliente.
               Asignalo acá y ya queda con su stock cargado. <strong>Avisar bajo</strong> es el
               mínimo: cuando el stock cae por debajo sale un mail de alerta, y si lo dejás
               vacío ese producto nunca avisa.

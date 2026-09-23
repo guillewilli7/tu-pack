@@ -91,13 +91,21 @@ export type CatalogoItem = {
   product_id: number; precio: string | null; stock: number; nombre: string; codigo_prod: string | null;
 };
 
+/** Los productos del cliente más los genéricos, igual que ve el agente. */
 export async function catalogoDeSucursal(clientId: number) {
   return consultar<CatalogoItem>(
-    `SELECT bp.product_id, bp.precio, bp.stock, p.nombre, p.codigo_prod
+    `SELECT p.id AS product_id,
+            COALESCE(bp.precio, p.precio_lista) AS precio,
+            COALESCE(bp.stock, 0) AS stock,
+            p.nombre, p.codigo_prod
        FROM clients c
-       JOIN business_products bp ON bp.business_id = tupack_stock_owner(c.business_id)
-       JOIN products p ON p.id = bp.product_id
-      WHERE c.id = $1 AND bp.activo AND p.activo
+       CROSS JOIN products p
+       LEFT JOIN business_products bp
+              ON bp.product_id = p.id
+             AND bp.business_id = tupack_stock_owner(c.business_id)
+             AND bp.activo
+      WHERE c.id = $1 AND p.activo
+        AND (bp.id IS NOT NULL OR p.generico)
       ORDER BY p.nombre`,
     [clientId]
   );

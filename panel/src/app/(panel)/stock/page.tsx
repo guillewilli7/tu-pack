@@ -50,6 +50,7 @@ export default async function Stock({
       `SELECT p.id, p.nombre, p.codigo_prod, p.unidad
          FROM products p
         WHERE p.activo
+          AND NOT p.generico
           AND NOT EXISTS (
             SELECT 1 FROM business_products bp
              WHERE bp.product_id = p.id AND bp.activo)

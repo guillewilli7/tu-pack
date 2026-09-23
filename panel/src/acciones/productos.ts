@@ -9,13 +9,28 @@ export async function crearProducto(datos: FormData) {
   await pedirSesion();
   const t = (c: string) => String(datos.get(c) ?? "").trim();
   const nombre = t("nombre");
+  const generico = datos.get("generico") === "true";
+  const precioLista = t("precio_lista");
 
-  const creado = await unaFila<{ id: number }>(
-    `INSERT INTO products (codigo_prod, nombre, descripcion, unidad, costo, activo)
-     VALUES ($1,$2,$3,$4,$5,true) RETURNING id`,
-    [t("codigo_prod") || null, nombre, t("descripcion") || null,
-     t("unidad") || "unidad", parseFloat(t("costo")) || 0]
-  );
+  // El código lo pone la base con el mayor + 1. Va dentro del INSERT y no en
+  // una consulta aparte para que no se cuele otro producto en el medio.
+  let creado: { id: number; codigo_prod: string | null } | null;
+  try {
+    creado = await unaFila<{ id: number; codigo_prod: string | null }>(
+      `INSERT INTO products (codigo_prod, nombre, descripcion, unidad, costo, activo, generico, precio_lista)
+       VALUES (COALESCE($1, tupack_siguiente_codigo_prod()),$2,$3,$4,$5,true,$6,$7)
+       RETURNING id, codigo_prod`,
+      [t("codigo_prod") || null, nombre, t("descripcion") || null,
+       t("unidad") || "unidad", parseFloat(t("costo")) || 0,
+       generico, precioLista === "" ? null : parseFloat(precioLista)]
+    );
+  } catch (e) {
+    if ((e as { code?: string }).code === "23505") {
+      await avisar(`El código "${t("codigo_prod")}" ya lo tiene otro producto. Dejalo vacío y se asigna solo.`, "peligro");
+      return;
+    }
+    throw e;
+  }
 
   // Un producto sin cliente no aparece en Stock: si eligieron uno acá, se lo
   // asignamos en el mismo paso para que quede listo para cargarle stock.
@@ -44,11 +59,13 @@ export async function crearProducto(datos: FormData) {
     revalidatePath(`/clientes/${businessId}`);
     const locales = Number(dueno?.locales ?? 0);
     await avisar(
-      `"${nombre}" creado y asignado a ${dueno?.nombre ?? "el cliente"}` +
+      `${creado!.codigo_prod} · "${nombre}" creado y asignado a ${dueno?.nombre ?? "el cliente"}` +
       (locales > 0 ? `, y queda para sus ${locales + 1} locales.` : ".")
     );
+  } else if (generico) {
+    await avisar(`${creado!.codigo_prod} · "${nombre}" creado como genérico: lo puede pedir cualquier cliente.`);
   } else {
-    await avisar(`"${nombre}" creado. Asignalo a un cliente para poder cargarle stock.`);
+    await avisar(`${creado!.codigo_prod} · "${nombre}" creado. Asignalo a un cliente para poder cargarle stock.`);
   }
 
   revalidatePath("/productos");
@@ -57,9 +74,13 @@ export async function crearProducto(datos: FormData) {
 export async function guardarProducto(id: number, datos: FormData) {
   await pedirSesion();
   const t = (c: string) => String(datos.get(c) ?? "").trim();
+  const precioLista = t("precio_lista");
   await consultar(
-    "UPDATE products SET nombre=$1, descripcion=$2, unidad=$3, costo=$4 WHERE id=$5",
-    [t("nombre"), t("descripcion") || null, t("unidad") || "unidad", parseFloat(t("costo")) || 0, id]
+    `UPDATE products SET nombre=$1, descripcion=$2, unidad=$3, costo=$4,
+            generico=$5, precio_lista=$6
+      WHERE id=$7`,
+    [t("nombre"), t("descripcion") || null, t("unidad") || "unidad", parseFloat(t("costo")) || 0,
+     datos.get("generico") === "true", precioLista === "" ? null : parseFloat(precioLista), id]
   );
   revalidatePath("/productos");
   revalidatePath("/stock");
