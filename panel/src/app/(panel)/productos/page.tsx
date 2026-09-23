@@ -52,8 +52,10 @@ export default async function Productos({
       <Tarjeta titulo="Nuevo producto">
         <form action={crearProducto} className="flex flex-col gap-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[130px_1fr_1fr_110px_110px]">
-            <Campo etiqueta="Código" name="codigo_prod" placeholder={siguiente?.siguiente ?? "P-0001"}
-                   ayuda="Se asigna solo" />
+            {/* Deshabilitado a propósito: al no enviarse, el código lo decide la
+                base en el INSERT y no puede quedar pegado uno viejo de la pantalla. */}
+            <Campo etiqueta="Código" disabled value={siguiente?.siguiente ?? "—"}
+                   ayuda="Se asigna solo" className="bg-superficie-2 text-texto-suave" />
             <Campo etiqueta="Nombre" name="nombre" required />
             <Campo etiqueta="Descripción" name="descripcion" />
             <Campo etiqueta="Unidad" name="unidad" defaultValue="unidad" />

@@ -25,8 +25,9 @@ export async function crearProducto(datos: FormData) {
        generico, precioLista === "" ? null : parseFloat(precioLista)]
     );
   } catch (e) {
+    // Solo puede pasar si dos altas toman el mismo número a la vez.
     if ((e as { code?: string }).code === "23505") {
-      await avisar(`El código "${t("codigo_prod")}" ya lo tiene otro producto. Dejalo vacío y se asigna solo.`, "peligro");
+      await avisar("Justo se creó otro producto con ese código. Probá de nuevo.", "peligro");
       return;
     }
     throw e;
